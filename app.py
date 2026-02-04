@@ -17,20 +17,37 @@ import sqlite3
 import os
 from typing import List, Dict, Any, Optional
 import uvicorn
+import sys
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
-# Detecta se está no PythonAnywhere
-IS_PYTHONANYWHERE = 'PYTHONANYWHERE_DOMAIN' in os.environ
+# Detecta ambiente
+def get_base_dir():
+    """Retorna o diretório base do aplicativo"""
+    if getattr(sys, 'frozen', False):
+        # Rodando como executável PyInstaller
+        # sys.executable é o caminho do .exe
+        return os.path.dirname(sys.executable)
+    elif 'PYTHONANYWHERE_DOMAIN' in os.environ:
+        # PythonAnywhere
+        return os.path.dirname(os.path.abspath(__file__))
+    else:
+        # Desenvolvimento local
+        return os.path.dirname(os.path.abspath(__file__))
 
-app = FastAPI(title="Health Score Dashboard", version="2.2.1")
+BASE_DIR = get_base_dir()
+IS_PYTHONANYWHERE = 'PYTHONANYWHERE_DOMAIN' in os.environ
+IS_FROZEN = getattr(sys, 'frozen', False)
+
+app = FastAPI(title="Health Score Dashboard", version="2.2.2")
 
 # Configuração do banco de dados SQLite
-if IS_PYTHONANYWHERE:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DB_PATH = os.path.join(BASE_DIR, "historico.db")
-else:
-    DB_PATH = "historico.db"
+DB_PATH = os.path.join(BASE_DIR, "historico.db")
+
+print(f"[INFO] Base dir: {BASE_DIR}")
+print(f"[INFO] DB path: {DB_PATH}")
+print(f"[INFO] Frozen: {IS_FROZEN}")
+print(f"[INFO] PythonAnywhere: {IS_PYTHONANYWHERE}")
 
 def init_db():
     """Inicializa o banco de dados SQLite para histórico"""
@@ -89,8 +106,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configurar caminhos de arquivos estáticos
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+
+# Se estiver em _internal (PyInstaller), usa esse caminho
+if IS_FROZEN and not os.path.exists(STATIC_DIR):
+    STATIC_DIR = os.path.join(BASE_DIR, "_internal", "static")
+    TEMPLATES_DIR = os.path.join(BASE_DIR, "_internal", "templates")
+
+print(f"[INFO] Static dir: {STATIC_DIR}")
+print(f"[INFO] Templates dir: {TEMPLATES_DIR}")
+
 # Servir arquivos estáticos
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Cache temporário dos dados processados
 cached_data = {}
@@ -882,7 +911,11 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     """Serve a página principal"""
-    return FileResponse("templates/index.html")
+    index_path = os.path.join(TEMPLATES_DIR, "index.html")
+    if not os.path.exists(index_path):
+        # Fallback para caminho relativo
+        index_path = "templates/index.html"
+    return FileResponse(index_path)
 
 
 @app.post("/api/upload")

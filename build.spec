@@ -2,16 +2,39 @@
 import os
 import sys
 
-# Caminho base
-base_path = os.path.dirname(os.path.abspath('__file__'))
+# Caminho base - usa o diretório atual (onde o spec está)
+base_path = os.getcwd()
 
 block_cipher = None
 
+# Verifica se as pastas existem
+static_path = os.path.join(base_path, 'static')
+templates_path = os.path.join(base_path, 'templates')
+
+print(f"Base path: {base_path}")
+print(f"Static path: {static_path} - Exists: {os.path.exists(static_path)}")
+print(f"Templates path: {templates_path} - Exists: {os.path.exists(templates_path)}")
+
 # Configurar dados extras - usar formato tupla (origem, destino)
-datas = [
-    (os.path.join(base_path, 'templates'), 'templates'),
-    (os.path.join(base_path, 'static'), 'static'),
-]
+datas = []
+
+# Adiciona todos os arquivos da pasta static
+if os.path.exists(static_path):
+    for root, dirs, files in os.walk(static_path):
+        for file in files:
+            full_path = os.path.join(root, file)
+            rel_path = os.path.relpath(full_path, base_path)
+            datas.append((full_path, os.path.dirname(rel_path)))
+
+# Adiciona todos os arquivos da pasta templates
+if os.path.exists(templates_path):
+    for root, dirs, files in os.walk(templates_path):
+        for file in files:
+            full_path = os.path.join(root, file)
+            rel_path = os.path.relpath(full_path, base_path)
+            datas.append((full_path, os.path.dirname(rel_path)))
+
+print(f"Total de arquivos a incluir: {len(datas)}")
 
 a = Analysis(
     ['app.py'],
