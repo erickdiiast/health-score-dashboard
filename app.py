@@ -516,12 +516,17 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
     return df, params
 
 
-def salvar_snapshot(resumo: Dict, filtros: Dict = None) -> int:
+def salvar_snapshot(resumo: Dict, filtros: Dict = None, data_custom: str = None) -> int:
     """Salva um snapshot do dia no banco de dados"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    hoje = datetime.now().strftime("%Y-%m-%d")
+    # Usa data customizada (do arquivo) ou data atual
+    if data_custom:
+        data_snapshot = data_custom
+    else:
+        data_snapshot = datetime.now().strftime("%Y-%m-%d")
+    
     agora = datetime.now().isoformat()
     
     filtros = filtros or {}
@@ -538,7 +543,7 @@ def salvar_snapshot(resumo: Dict, filtros: Dict = None) -> int:
             filtro_regiao, filtro_vip
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        hoje, agora,
+        data_snapshot, agora,
         resumo.get('total_jogadores', 0),
         resumo.get('percentual_ativos', 0),
         resumo.get('media_pontuacao_geral', 0),
@@ -628,6 +633,37 @@ def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> Lis
     
     conn.close()
     return historico
+
+
+def deletar_snapshot(snapshot_id: int = None, data: str = None) -> bool:
+    """Deleta um snapshot por ID ou por data"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        if snapshot_id:
+            # Deleta clusters primeiro (foreign key)
+            cursor.execute('DELETE FROM clusters_dia WHERE snapshot_id = ?', (snapshot_id,))
+            # Deleta snapshot
+            cursor.execute('DELETE FROM snapshots WHERE id = ?', (snapshot_id,))
+        elif data:
+            # Busca IDs dos snapshots da data
+            cursor.execute('SELECT id FROM snapshots WHERE data = ?', (data,))
+            ids = cursor.fetchall()
+            for (sid,) in ids:
+                cursor.execute('DELETE FROM clusters_dia WHERE snapshot_id = ?', (sid,))
+            cursor.execute('DELETE FROM snapshots WHERE data = ?', (data,))
+        else:
+            conn.close()
+            return False
+        
+        conn.commit()
+        conn.close()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao deletar snapshot: {e}")
+        conn.close()
+        return False
 
 
 def comparar_periodos(data_inicio: str, data_fim: str) -> Dict:
@@ -1112,20 +1148,51 @@ async def export_excel():
 # ========== ENDPOINTS DE HISTÓRICO ==========
 
 @app.post("/api/historico/salvar")
-async def salvar_historico(filtros: Dict[str, str] = None):
+async def salvar_historico(request: Dict[str, Any]):
     """Salva o estado atual como snapshot do dia"""
     if not cached_data:
         raise HTTPException(status_code=404, detail="Nenhum dado processado. Faça upload primeiro.")
     
     resumo = cached_data['resumo']
-    snapshot_id = salvar_snapshot(resumo, filtros)
+    filtros = request.get('filtros', {})
+    data_custom = request.get('data')  # Data do arquivo, se informada
+    
+    snapshot_id = salvar_snapshot(resumo, filtros, data_custom)
     
     return {
         "success": True,
         "message": "Dados do dia salvos com sucesso",
         "snapshot_id": snapshot_id,
-        "data": datetime.now().strftime("%Y-%m-%d")
+        "data": data_custom or datetime.now().strftime("%Y-%m-%d")
     }
+
+
+@app.delete("/api/historico/{snapshot_id}")
+async def deletar_historico(snapshot_id: int):
+    """Deleta um snapshot específico pelo ID"""
+    sucesso = deletar_snapshot(snapshot_id=snapshot_id)
+    
+    if sucesso:
+        return {
+            "success": True,
+            "message": f"Snapshot {snapshot_id} deletado com sucesso"
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Snapshot não encontrado")
+
+
+@app.delete("/api/historico/data/{data}")
+async def deletar_historico_por_data(data: str):
+    """Deleta todos os snapshots de uma data específica (YYYY-MM-DD)"""
+    sucesso = deletar_snapshot(data=data)
+    
+    if sucesso:
+        return {
+            "success": True,
+            "message": f"Snapshots de {data} deletados com sucesso"
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Nenhum snapshot encontrado para esta data")
 
 
 @app.get("/api/historico")

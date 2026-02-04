@@ -1259,26 +1259,60 @@ let execEvolucaoChart = null;
  */
 async function salvarSnapshot() {
     try {
+        const dataInput = document.getElementById('snapshot-data');
+        const dataSnapshot = dataInput.value; // Data no formato YYYY-MM-DD
+        
         const response = await fetch('/api/historico/salvar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                regiao: regiaoAtual,
-                vip: vipAtual
+                filtros: {
+                    regiao: regiaoAtual,
+                    vip: vipAtual
+                },
+                data: dataSnapshot || null // Se vazio, backend usa data atual
             })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            showToast('Dados do dia salvos com sucesso!', 'success');
+            showToast('Dados salvos com sucesso! Data: ' + data.data, 'success');
             carregarHistorico();
+            dataInput.value = ''; // Limpa o campo
         } else {
             showToast('Erro ao salvar: ' + data.message, 'error');
         }
     } catch (error) {
         console.error('Erro ao salvar snapshot:', error);
         showToast('Erro ao salvar dados', 'error');
+    }
+}
+
+/**
+ * Deleta um snapshot pelo ID
+ */
+async function deletarSnapshot(snapshotId) {
+    if (!confirm('Tem certeza que deseja excluir este registro?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/historico/${snapshotId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Registro excluído com sucesso!', 'success');
+            carregarHistorico();
+        } else {
+            showToast('Erro ao excluir: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao deletar snapshot:', error);
+        showToast('Erro ao excluir registro', 'error');
     }
 }
 
@@ -1405,17 +1439,23 @@ function atualizarTabelaHistorico(historico) {
         
         html += `
             <tr>
+                <td>#${dia.id}</td>
                 <td>${new Date(dia.data).toLocaleDateString('pt-BR')}</td>
                 <td>${dia.total_jogadores.toLocaleString()}</td>
                 <td>${dia.percentual_ativos.toFixed(1)}%</td>
                 <td>${dia.media_score_geral.toFixed(1)}</td>
                 <td>${(clusters['Elite'] || 0).toLocaleString()}</td>
                 <td>${riscos.toLocaleString()}</td>
+                <td>
+                    <button class="btn-delete" onclick="deletarSnapshot(${dia.id})" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
         `;
     }
     
-    tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center">Nenhum histórico encontrado</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="8" style="text-align:center">Nenhum histórico encontrado</td></tr>';
 }
 
 /**

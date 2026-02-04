@@ -1266,3 +1266,93 @@ input[type="file"] {
 .bg-teal {
     background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
 }
+
+
+/* ========================================
+   SALVAR SNAPSHOT - ESTILOS
+   ======================================== */
+
+.salvar-snapshot-box {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-bottom: 25px;
+    border-left: 4px solid var(--primary);
+}
+
+.salvar-snapshot-box h4 {
+    margin-bottom: 15px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.salvar-snapshot-form {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.salvar-snapshot-form .filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.salvar-snapshot-form input[type="date"] {
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-hover);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    min-width: 150px;
+}
+
+.salvar-snapshot-form input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.snapshot-ajuda {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Botão de deletar na tabela */
+.btn-delete {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: opacity 0.2s;
+}
+
+.btn-delete:hover {
+    opacity: 0.8;
+}
+
+/* Coluna ID na tabela */
+#historico-table td:first-child,
+#historico-table th:first-child {
+    width: 60px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* Coluna Ações */
+#historico-table td:last-child,
+#historico-table th:last-child {
+    width: 80px;
+    text-align: center;
+}
