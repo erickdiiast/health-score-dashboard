@@ -20,10 +20,17 @@ import uvicorn
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
-app = FastAPI(title="Health Score Dashboard", version="2.2.0")
+# Detecta se está no PythonAnywhere
+IS_PYTHONANYWHERE = 'PYTHONANYWHERE_DOMAIN' in os.environ
+
+app = FastAPI(title="Health Score Dashboard", version="2.2.1")
 
 # Configuração do banco de dados SQLite
-DB_PATH = "historico.db"
+if IS_PYTHONANYWHERE:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DB_PATH = os.path.join(BASE_DIR, "historico.db")
+else:
+    DB_PATH = "historico.db"
 
 def init_db():
     """Inicializa o banco de dados SQLite para histórico"""
