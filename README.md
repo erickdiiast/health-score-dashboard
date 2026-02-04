@@ -85,7 +85,8 @@ PLAYER_0002,2026-01-30,3,45,10,8,0.00,0,30
 | ✅ **Muito Bom** | 65-79 | Boa saúde geral |
 | 📊 **Estável** | 50-64 | Engajamento moderado |
 | ⚠️ **Baixo** | 35-49 | Atenção necessária |
-| 🚨 **Risco Alto** | < 35 | Alto risco de churn |
+| 🚨 **Risco - Queda em Receita** | < 35 | score_compras < score_engajamento |
+| 🚨 **Risco - Queda em Engajamento** | < 35 | score_engajamento ≤ score_compras |
 
 ## 🧮 Fórmulas de Cálculo
 
@@ -94,7 +95,7 @@ PLAYER_0002,2026-01-30,3,45,10,8,0.00,0,30
 Score Login = 100 × exp(-dias_inativo / 7)
 ```
 
-### Score de Engajamento (40%)
+### Score de Engajamento (30%)
 ```
 Score Engajamento = média(
   tempo_jogo / 60 min,
@@ -114,7 +115,7 @@ Score Compras = média(
 
 ### Score Geral
 ```
-Score Geral = Login × 0.3 + Engajamento × 0.4 + Compras × 0.3
+Score Geral = Engajamento × 0.3 + Compras × 0.7
 ```
 
 ## 🛠️ Tecnologias

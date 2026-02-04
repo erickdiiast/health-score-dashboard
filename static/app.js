@@ -15,6 +15,7 @@ let cachedResumoAtual = null;  // Resumo da região atual
 let cachedDataCompleto = null;
 let cachedDadosAtual = null;   // Dados da região atual
 let regiaoAtual = 'all';  // 'all', 'es', 'br', 'int'
+let vipAtual = 'all';     // 'all', '1', '2', '3', '4', '5'
 
 // Configuração padrão do Chart.js
 Chart.defaults.color = '#94a3b8';
@@ -37,8 +38,8 @@ function showRegion(regiao) {
     // Filtra dados e atualiza dashboard
     if (cachedDataCompleto) {
         console.log('Filtrando', cachedDataCompleto.length, 'jogadores');
-        const dadosFiltrados = filtrarPorRegiao(cachedDataCompleto, regiao);
-        console.log('Filtrado para', dadosFiltrados.length, 'jogadores na região', regiao);
+        const dadosFiltrados = filtrarDados(cachedDataCompleto, regiao, vipAtual);
+        console.log('Filtrado para', dadosFiltrados.length, 'jogadores (região:', regiao, ', VIP:', vipAtual, ')');
         const resumoFiltrado = gerarResumoFiltrado(dadosFiltrados, cachedResumo, regiao);
         console.log('Resumo calculado:', resumoFiltrado.total_jogadores, 'jogadores');
         
@@ -64,13 +65,66 @@ function filtrarPorRegiao(dados, regiao) {
 }
 
 /**
- * Gera resumo filtrado por região
+ * Gerenciamento de Nível VIP
+ */
+function showVIP(nivel) {
+    console.log('Trocando nível VIP para:', nivel);
+    vipAtual = nivel;
+    
+    // Atualiza botões
+    document.querySelectorAll('.vip-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById('vip-btn-' + nivel).classList.add('active');
+    
+    // Filtra dados e atualiza dashboard
+    if (cachedDataCompleto) {
+        const dadosFiltrados = filtrarDados(cachedDataCompleto, regiaoAtual, vipAtual);
+        console.log('Filtrado para', dadosFiltrados.length, 'jogadores (região:', regiaoAtual, ', VIP:', vipAtual, ')');
+        const resumoFiltrado = gerarResumoFiltrado(dadosFiltrados, cachedResumo, regiaoAtual);
+        
+        // Atualiza dashboard com dados filtrados
+        updateDashboardWithData(resumoFiltrado, dadosFiltrados);
+        
+        // Se estiver nas abas VIP ou Benchmarks, força re-renderização
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab && (activeTab.id === 'tab-vip' || activeTab.id === 'tab-benchmarks')) {
+            renderTabContent(activeTab.id, resumoFiltrado);
+        }
+    }
+}
+
+/**
+ * Filtra dados por nível VIP
+ */
+function filtrarPorVIP(dados, nivel) {
+    if (nivel === 'all') return dados;
+    return dados.filter(j => String(j.vip_level) === nivel || String(j.nivel_vip) === nivel);
+}
+
+/**
+ * Filtra dados por região e VIP combinados
+ */
+function filtrarDados(dados, regiao, vip) {
+    let resultado = dados;
+    if (regiao !== 'all') {
+        resultado = resultado.filter(j => j.regiao === regiao);
+    }
+    if (vip !== 'all') {
+        resultado = resultado.filter(j => String(j.vip_level) === vip || String(j.nivel_vip) === vip);
+    }
+    return resultado;
+}
+
+/**
+ * Gera resumo filtrado por região e/ou VIP
  */
 function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
-    if (regiao === 'all') return resumoOriginal;
+    // Se região for 'all' e não houver filtro VIP, retorna original
+    if (regiao === 'all' && vipAtual === 'all') return resumoOriginal;
     
-    // Se temos análise pré-calculada no backend, usa ela
-    if (resumoOriginal.analise_regiao && resumoOriginal.analise_regiao[regiao]) {
+    // Se temos análise pré-calculada no backend E não há filtro VIP ativo, usa ela
+    if (vipAtual === 'all' && resumoOriginal.analise_regiao && resumoOriginal.analise_regiao[regiao]) {
         const analise = resumoOriginal.analise_regiao[regiao];
         return {
             ...resumoOriginal,
@@ -82,7 +136,8 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
             media_pontuacao_geral: analise.score_geral_medio,
             distribuicao_categorias: analise.distribuicao_categorias,
             top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
-            jogadores_risco: dados.filter(j => j.categoria === 'Risco alto + Crítico').slice(0, 50),
+            jogadores_risco_receita: dados.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50),
+            jogadores_risco_engajamento: dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50),
             regiao_atual: regiao,
             regiao_nome: analise.nome
         };
@@ -94,6 +149,14 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
     
     const ativos = dados.filter(j => j.ativo).length;
     
+    // Calcula distribuição de categorias
+    const elite = dados.filter(j => j.categoria === 'Elite').length;
+    const muitoBom = dados.filter(j => j.categoria === 'Muito bom').length;
+    const estavel = dados.filter(j => j.categoria === 'Estável').length;
+    const baixo = dados.filter(j => j.categoria === 'Baixo').length;
+    const riscoReceita = dados.filter(j => j.categoria === 'Risco: Queda em Receita').length;
+    const riscoEngajamento = dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').length;
+    
     return {
         ...resumoOriginal,
         total_jogadores: total,
@@ -102,8 +165,17 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
         media_saude_engajamento: dados.reduce((a, b) => a + b.score_engajamento, 0) / total,
         media_saude_compras: dados.reduce((a, b) => a + b.score_compras, 0) / total,
         media_pontuacao_geral: dados.reduce((a, b) => a + b.score_geral, 0) / total,
+        distribuicao_categorias: {
+            elite: (elite / total * 100).toFixed(2),
+            muito_bom: (muitoBom / total * 100).toFixed(2),
+            estavel: (estavel / total * 100).toFixed(2),
+            baixo: (baixo / total * 100).toFixed(2),
+            risco_receita: (riscoReceita / total * 100).toFixed(2),
+            risco_engajamento: (riscoEngajamento / total * 100).toFixed(2)
+        },
         top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
-        jogadores_risco: dados.filter(j => j.categoria === 'Risco alto + Crítico').slice(0, 50),
+        jogadores_risco_receita: dados.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50),
+        jogadores_risco_engajamento: dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50),
         regiao_atual: regiao,
         regiao_nome: regiao === 'es' ? 'Espanhol' : regiao === 'br' ? 'Brasil' : 'Internacional'
     };
@@ -154,13 +226,28 @@ function calcularAnaliseVIP(dados) {
         5: { nome: 'Berilo', cor: '#3498DB', icone: '👑' }
     };
     
+    const calcularMedia = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length || 0;
+    const calcularMediana = (arr) => {
+        if (arr.length === 0) return 0;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    };
+    
     const analise = {};
     const total = dados.length;
     
     niveis.forEach(nivel => {
-        const jogadoresNivel = dados.filter(j => j.nivel_vip === nivel);
+        const jogadoresNivel = dados.filter(j => j.nivel_vip === nivel || j.vip_level === nivel);
         if (jogadoresNivel.length > 0) {
             const count = jogadoresNivel.length;
+            
+            // Calcula estatísticas de benchmarks para este nível VIP
+            const torneios = jogadoresNivel.map(d => d.qtd_torneios_3d || 0);
+            const maratonas = jogadoresNivel.map(d => d.qtd_maratonas_3d || 0);
+            const missoes = jogadoresNivel.map(d => d.qtd_missoes_3d || 0);
+            const promos = jogadoresNivel.map(d => d.qtd_promos_3d || 0);
+            
             analise[`vip_${nivel}`] = {
                 nivel: nivel,
                 nome: nomesVIP[nivel].nome,
@@ -172,6 +259,17 @@ function calcularAnaliseVIP(dados) {
                 score_login_medio: (jogadoresNivel.reduce((a, b) => a + b.score_login, 0) / count).toFixed(2),
                 score_engajamento_medio: (jogadoresNivel.reduce((a, b) => a + b.score_engajamento, 0) / count).toFixed(2),
                 score_compras_medio: (jogadoresNivel.reduce((a, b) => a + b.score_compras, 0) / count).toFixed(2),
+                // Estatísticas de benchmarks
+                estatisticas: {
+                    media_torneios_3d: calcularMedia(torneios),
+                    media_maratonas_3d: calcularMedia(maratonas),
+                    media_missoes_3d: calcularMedia(missoes),
+                    media_promos_3d: calcularMedia(promos),
+                    mediana_torneios_3d: calcularMediana(torneios),
+                    mediana_maratonas_3d: calcularMediana(maratonas),
+                    mediana_missoes_3d: calcularMediana(missoes),
+                    mediana_promos_3d: calcularMediana(promos),
+                }
             };
         }
     });
@@ -213,9 +311,17 @@ function updateDashboardWithData(resumo, dados) {
         renderTabContent(activeTab.id, resumo);
     }
     
-    // Atualiza tabelas
-    updateTopJogadores(resumo.top_jogadores);
-    updateJogadoresRisco(resumo.jogadores_risco);
+    // Atualiza tabelas - calcula a partir dos dados filtrados
+    const topJogadores = dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
+    const jogadoresRiscoReceita = dados.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50);
+    const jogadoresRiscoEngajamento = dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50);
+    
+    updateTopJogadores(topJogadores);
+    updateJogadoresRiscoReceita(jogadoresRiscoReceita);
+    updateJogadoresRiscoEngajamento(jogadoresRiscoEngajamento);
+    
+    // Atualiza seção de clusters
+    updateClustersSection(dados);
 }
 
 /**
@@ -263,6 +369,9 @@ function renderTabContent(tabId, resumo) {
             break;
         case 'tab-players':
             // Tabelas já foram renderizadas
+            break;
+        case 'tab-clusters':
+            // Clusters são atualizados via updateDashboardWithData
             break;
         case 'tab-benchmarks':
             if (resumo.estatisticas) {
@@ -346,14 +455,16 @@ function updateCategorias(distribuicao) {
     document.getElementById('cat-muito-bom').textContent = distribuicao.muito_bom + '%';
     document.getElementById('cat-estavel').textContent = distribuicao.estavel + '%';
     document.getElementById('cat-baixo').textContent = distribuicao.baixo + '%';
-    document.getElementById('cat-risco').textContent = distribuicao.risco + '%';
+    document.getElementById('cat-risco-receita').textContent = distribuicao.risco_receita + '%';
+    document.getElementById('cat-risco-engajamento').textContent = distribuicao.risco_engajamento + '%';
     
     // Atualiza barras de progresso
     document.getElementById('progress-elite').style.width = distribuicao.elite + '%';
     document.getElementById('progress-muito-bom').style.width = distribuicao.muito_bom + '%';
     document.getElementById('progress-estavel').style.width = distribuicao.estavel + '%';
     document.getElementById('progress-baixo').style.width = distribuicao.baixo + '%';
-    document.getElementById('progress-risco').style.width = distribuicao.risco + '%';
+    document.getElementById('progress-risco-receita').style.width = distribuicao.risco_receita + '%';
+    document.getElementById('progress-risco-engajamento').style.width = distribuicao.risco_engajamento + '%';
 }
 
 /**
@@ -372,21 +483,23 @@ function renderCategoriaChart(distribuicao) {
     categoriaChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Elite', 'Muito Bom', 'Estável', 'Baixo', 'Risco'],
+            labels: ['Elite', 'Muito Bom', 'Estável', 'Baixo', 'Risco: Queda em Receita', 'Risco: Queda em Engajamento'],
             datasets: [{
                 data: [
                     distribuicao.elite,
                     distribuicao.muito_bom,
                     distribuicao.estavel,
                     distribuicao.baixo,
-                    distribuicao.risco
+                    distribuicao.risco_receita,
+                    distribuicao.risco_engajamento
                 ],
                 backgroundColor: [
                     '#fbbf24',
                     '#34d399',
                     '#60a5fa',
                     '#fb923c',
-                    '#f87171'
+                    '#ef4444',
+                    '#f97316'
                 ],
                 borderWidth: 0,
                 hoverOffset: 4
@@ -492,7 +605,9 @@ function getBadgeClass(categoria) {
         'Muito bom': 'badge-muito-bom',
         'Estável': 'badge-estavel',
         'Baixo': 'badge-baixo',
-        'Risco alto + Crítico': 'badge-risco'
+        'Risco alto + Crítico': 'badge-risco',
+        'Risco: Queda em Receita': 'badge-risco-receita',
+        'Risco: Queda em Engajamento': 'badge-risco-engajamento'
     };
     return map[categoria] || 'badge-estavel';
 }
@@ -530,31 +645,150 @@ function updateTopJogadores(topJogadores) {
 }
 
 /**
- * Atualiza tabela de jogadores em risco
+ * Atualiza tabela de jogadores em risco - Queda em Receita
  */
-function updateJogadoresRisco(jogadoresRisco) {
-    const tbody = document.getElementById('risco-body');
+function updateJogadoresRiscoReceita(jogadores) {
+    const tbody = document.getElementById('risco-receita-body');
     tbody.innerHTML = '';
     
-    if (!jogadoresRisco || jogadoresRisco.length === 0) {
+    if (!jogadores || jogadores.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="4" style="text-align: center; color: #64748b;">Nenhum jogador em risco crítico</td>';
+        row.innerHTML = '<td colspan="5" style="text-align: center; color: #64748b;">Nenhum jogador em risco de queda em receita</td>';
         tbody.appendChild(row);
         return;
     }
     
-    jogadoresRisco.forEach(jogador => {
+    jogadores.forEach(jogador => {
         const row = document.createElement('tr');
         const playerId = jogador.player_id || Object.values(jogador)[0];
         
         row.innerHTML = `
             <td>${playerId}</td>
             <td>${formatNumber(jogador.score_geral || 0)}</td>
-            <td><span class="badge badge-risco">${jogador.categoria}</span></td>
-            <td>Reengajamento urgente</td>
+            <td>${formatNumber(jogador.score_engajamento || 0)}</td>
+            <td>${formatNumber(jogador.score_compras || 0)}</td>
+            <td><span class="badge badge-risco-receita">Oferta personalizada</span></td>
         `;
         tbody.appendChild(row);
     });
+}
+
+/**
+ * Atualiza tabela de jogadores em risco - Queda em Engajamento
+ */
+function updateJogadoresRiscoEngajamento(jogadores) {
+    const tbody = document.getElementById('risco-engajamento-body');
+    tbody.innerHTML = '';
+    
+    if (!jogadores || jogadores.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="5" style="text-align: center; color: #64748b;">Nenhum jogador em risco de queda em engajamento</td>';
+        tbody.appendChild(row);
+        return;
+    }
+    
+    jogadores.forEach(jogador => {
+        const row = document.createElement('tr');
+        const playerId = jogador.player_id || Object.values(jogador)[0];
+        
+        row.innerHTML = `
+            <td>${playerId}</td>
+            <td>${formatNumber(jogador.score_geral || 0)}</td>
+            <td>${formatNumber(jogador.score_engajamento || 0)}</td>
+            <td>${formatNumber(jogador.score_compras || 0)}</td>
+            <td><span class="badge badge-risco-engajamento">Campanha de reengajamento</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Toggle expand/colapsar cluster
+ */
+function toggleCluster(clusterId) {
+    const content = document.getElementById(`cluster-${clusterId}-content`);
+    const toggle = document.getElementById(`cluster-${clusterId}-toggle`);
+    
+    if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        toggle.classList.remove('expanded');
+    } else {
+        content.classList.add('expanded');
+        toggle.classList.add('expanded');
+    }
+}
+
+/**
+ * Atualiza tabela de cluster com jogadores
+ */
+function updateClusterTable(clusterId, jogadores) {
+    const tbody = document.getElementById(`cluster-${clusterId}-body`);
+    const countEl = document.getElementById(`cluster-${clusterId}-count`);
+    
+    // Atualiza contador
+    const total = jogadores ? jogadores.length : 0;
+    countEl.textContent = `${total} jogador${total !== 1 ? 'es' : ''}`;
+    
+    tbody.innerHTML = '';
+    
+    if (!jogadores || jogadores.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">Nenhum jogador nesta categoria</td>`;
+        tbody.appendChild(row);
+        return;
+    }
+    
+    jogadores.forEach((jogador, index) => {
+        const row = document.createElement('tr');
+        const playerId = jogador.player_id || jogador.id || Object.values(jogador)[0];
+        
+        // Determina o nível VIP
+        let vipLevel = jogador.nivel_vip || jogador.vip_level || '-';
+        let vipBadge = '';
+        if (vipLevel !== '-') {
+            const coresVIP = {
+                1: '#9B59B6', 2: '#F39C12', 3: '#27AE60', 4: '#E74C3C', 5: '#3498DB'
+            };
+            const nomesVIP = {
+                1: 'Ametista', 2: 'Topázio', 3: 'Esmeralda', 4: 'Opala', 5: 'Berilo'
+            };
+            const cor = coresVIP[vipLevel] || '#64748b';
+            const nome = nomesVIP[vipLevel] || `VIP ${vipLevel}`;
+            vipBadge = `<span class="badge" style="background: ${cor}20; color: ${cor}; border: 1px solid ${cor}40;">${nome}</span>`;
+        }
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${playerId}</td>
+            <td>${formatNumber(jogador.score_geral || 0)}</td>
+            <td>${formatNumber(jogador.score_engajamento || 0)}</td>
+            <td>${formatNumber(jogador.score_compras || 0)}</td>
+            <td>${vipBadge}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Atualiza todas as tabelas de clusters
+ */
+function updateClustersSection(dados) {
+    if (!dados) return;
+    
+    // Filtra top 50 de cada categoria
+    const elite = dados.filter(j => j.categoria === 'Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const muitoBom = dados.filter(j => j.categoria === 'Muito bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const estavel = dados.filter(j => j.categoria === 'Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const baixo = dados.filter(j => j.categoria === 'Baixo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const riscoReceita = dados.filter(j => j.categoria === 'Risco: Queda em Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const riscoEngajamento = dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    
+    updateClusterTable('elite', elite);
+    updateClusterTable('muito-bom', muitoBom);
+    updateClusterTable('estavel', estavel);
+    updateClusterTable('baixo', baixo);
+    updateClusterTable('risco-receita', riscoReceita);
+    updateClusterTable('risco-engajamento', riscoEngajamento);
 }
 
 /**
@@ -567,12 +801,12 @@ function updateDashboard(resumo, dadosCompletos) {
         cachedDataCompleto = dadosCompletos;
     }
     
-    // Se temos dados completos e uma região selecionada, filtra
+    // Se temos dados completos e filtros selecionados, aplica-os
     let dadosParaMostrar = dadosCompletos;
     let resumoParaMostrar = resumo;
     
-    if (cachedDataCompleto && regiaoAtual !== 'all') {
-        dadosParaMostrar = filtrarPorRegiao(cachedDataCompleto, regiaoAtual);
+    if (cachedDataCompleto && (regiaoAtual !== 'all' || vipAtual !== 'all')) {
+        dadosParaMostrar = filtrarDados(cachedDataCompleto, regiaoAtual, vipAtual);
         resumoParaMostrar = gerarResumoFiltrado(dadosParaMostrar, resumo, regiaoAtual);
     }
     
@@ -600,9 +834,18 @@ function updateDashboard(resumo, dadosCompletos) {
         renderScoresChart(resumoParaMostrar);
     }
     
-    // Atualiza tabelas
-    updateTopJogadores(resumoParaMostrar.top_jogadores);
-    updateJogadoresRisco(resumoParaMostrar.jogadores_risco);
+    // Atualiza tabelas - calcula a partir dos dados filtrados
+    const topJogadores = dadosParaMostrar.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
+    const jogadoresRiscoReceita = dadosParaMostrar.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50);
+    const jogadoresRiscoEngajamento = dadosParaMostrar.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50);
+    
+    updateTopJogadores(topJogadores);
+    updateJogadoresRiscoReceita(jogadoresRiscoReceita);
+    updateJogadoresRiscoEngajamento(jogadoresRiscoEngajamento);
+    
+    // Atualiza seção de clusters
+    updateClustersSection(dadosParaMostrar);
+    
     if (resumoParaMostrar.analise_vip) {
         updateVIPSection(resumoParaMostrar.analise_vip);
     }
@@ -912,7 +1155,6 @@ function renderBenchmarksSection(resumo) {
         { icon: '🏃', title: 'Maratonas/dia', value: (stats.media_maratonas_3d / 3).toFixed(2), subtitle: `Média 3d: ${stats.media_maratonas_3d}` },
         { icon: '✅', title: 'Missões/dia', value: (stats.media_missoes_3d / 3).toFixed(2), subtitle: `Média 3d: ${stats.media_missoes_3d}` },
         { icon: '🎁', title: 'Promos/dia', value: (stats.media_promos_3d / 3).toFixed(2), subtitle: `Média 3d: ${stats.media_promos_3d}` },
-        { icon: '👤', title: 'Logins 3d', value: stats.media_logins_3d.toFixed(2), subtitle: `Mediana: ${stats.mediana_logins_3d}` },
     ];
     
     grid.innerHTML = benchmarks.map(b => `
@@ -934,17 +1176,17 @@ function renderBenchmarksSection(resumo) {
         benchmarksChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Torneios', 'Maratonas', 'Missões', 'Promos', 'Logins'],
+                labels: ['Torneios', 'Maratonas', 'Missões', 'Promos'],
                 datasets: [
                     {
                         label: 'Média 3d',
-                        data: [stats.media_torneios_3d, stats.media_maratonas_3d, stats.media_missoes_3d, stats.media_promos_3d, stats.media_logins_3d],
+                        data: [stats.media_torneios_3d, stats.media_maratonas_3d, stats.media_missoes_3d, stats.media_promos_3d],
                         backgroundColor: 'rgba(99, 102, 241, 0.8)',
                         borderRadius: 6
                     },
                     {
                         label: 'Mediana',
-                        data: [stats.mediana_torneios_3d, stats.mediana_maratonas_3d, stats.mediana_missoes_3d, stats.mediana_promos_3d, stats.mediana_logins_3d],
+                        data: [stats.mediana_torneios_3d, stats.mediana_maratonas_3d, stats.mediana_missoes_3d, stats.mediana_promos_3d],
                         backgroundColor: 'rgba(16, 185, 129, 0.8)',
                         borderRadius: 6
                     }
@@ -971,19 +1213,32 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Adiciona listener para teclas de navegação
     document.addEventListener('keydown', function(e) {
-        // Regiões (Ctrl + tecla)
-        if (e.ctrlKey) {
+        // Regiões (Ctrl + letra)
+        if (e.ctrlKey && !e.altKey) {
             if (e.key === 'a' || e.key === '0') showRegion('all');
             if (e.key === 'e') showRegion('es');
             if (e.key === 'b') showRegion('br');
             if (e.key === 'i') showRegion('int');
+            
+            // VIP (Ctrl + Alt + número)
+            if (e.key === 'v') showVIP('all');
         }
-        // Abas (1-4)
+        // VIP (Alt + número 1-5)
+        else if (e.altKey) {
+            if (e.key === '1') showVIP('1');
+            if (e.key === '2') showVIP('2');
+            if (e.key === '3') showVIP('3');
+            if (e.key === '4') showVIP('4');
+            if (e.key === '5') showVIP('5');
+            if (e.key === '0' || e.key === 'v') showVIP('all');
+        }
+        // Abas (1-5)
         else {
             if (e.key === '1') showTab('tab-overview');
             if (e.key === '2') showTab('tab-vip');
             if (e.key === '3') showTab('tab-players');
-            if (e.key === '4') showTab('tab-benchmarks');
+            if (e.key === '4') showTab('tab-clusters');
+            if (e.key === '5') showTab('tab-benchmarks');
         }
     });
 });

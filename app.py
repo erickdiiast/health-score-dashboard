@@ -374,8 +374,10 @@ class HealthScoreCalculator:
         # Ponderação: Engajamento 30%, Compras 70%
         return engajamento * 0.3 + compras * 0.7
     
-    def categorizar_jogador(self, score: float) -> str:
+    def categorizar_jogador(self, row: pd.Series) -> str:
         """Categoriza jogador baseado no score geral"""
+        score = row.get('score_geral', 50)
+        
         if score >= 80:
             return "Elite"
         elif score >= 65:
@@ -385,7 +387,14 @@ class HealthScoreCalculator:
         elif score >= 35:
             return "Baixo"
         else:
-            return "Risco alto + Crítico"
+            # Risco - identifica a causa
+            score_compras = row.get('score_compras', 0)
+            score_engajamento = row.get('score_engajamento', 0)
+            
+            if score_compras < score_engajamento:
+                return "Risco: Queda em Receita"
+            else:
+                return "Risco: Queda em Engajamento"
 
 
 def detectar_tipo_arquivo(filename: str) -> str:
@@ -423,7 +432,7 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
     df['score_geral'] = df.apply(calc.calcular_score_geral, axis=1)
     
     # Categoriza jogadores
-    df['categoria'] = df['score_geral'].apply(calc.categorizar_jogador)
+    df['categoria'] = df.apply(calc.categorizar_jogador, axis=1)
     
     # Status de atividade
     df['ativo'] = df['score_login'] >= 50
@@ -440,7 +449,9 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
         'Muito bom': 'Incentivar compras',
         'Estável': 'Aumentar frequência',
         'Baixo': 'Reengajamento',
-        'Risco alto + Crítico': 'Ação imediata!'
+        'Risco alto + Crítico': 'Ação imediata!',
+        'Risco: Queda em Receita': 'Foco em compras',
+        'Risco: Queda em Engajamento': 'Foco em engajamento'
     })
     
     # Adiciona informações de VIP
@@ -496,7 +507,8 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
             "muito_bom": round((df['categoria'] == 'Muito bom').sum() / total * 100, 2) if total > 0 else 0,
             "estavel": round((df['categoria'] == 'Estável').sum() / total * 100, 2) if total > 0 else 0,
             "baixo": round((df['categoria'] == 'Baixo').sum() / total * 100, 2) if total > 0 else 0,
-            "risco": round((df['categoria'] == 'Risco alto + Crítico').sum() / total * 100, 2) if total > 0 else 0,
+            "risco_receita": round((df['categoria'] == 'Risco: Queda em Receita').sum() / total * 100, 2) if total > 0 else 0,
+            "risco_engajamento": round((df['categoria'] == 'Risco: Queda em Engajamento').sum() / total * 100, 2) if total > 0 else 0,
         },
         "contagem_por_categoria": contagem_categorias.to_dict(),
         "parametros_calculados": params,
@@ -531,9 +543,12 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                                                           'score_login', 'score_engajamento', 
                                                           'score_compras', 'score_geral', 
                                                           'categoria', 'acao_sugerida']].to_dict('records'),
-        "jogadores_risco": df[df['categoria'] == 'Risco alto + Crítico'][[id_col, 
-                                                                          'score_geral', 'categoria',
-                                                                          'acao_sugerida']].head(50).to_dict('records'),
+        "jogadores_risco_receita": df[df['categoria'] == 'Risco: Queda em Receita'][[id_col, 
+                                                                          'score_geral', 'score_engajamento', 'score_compras',
+                                                                          'categoria', 'acao_sugerida']].head(50).to_dict('records'),
+        "jogadores_risco_engajamento": df[df['categoria'] == 'Risco: Queda em Engajamento'][[id_col, 
+                                                                          'score_geral', 'score_engajamento', 'score_compras',
+                                                                          'categoria', 'acao_sugerida']].head(50).to_dict('records'),
     }
     
     # Adiciona análise por região
@@ -559,7 +574,8 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                         "muito_bom": round((df_regiao['categoria'] == 'Muito bom').sum() / len(df_regiao) * 100, 2),
                         "estavel": round((df_regiao['categoria'] == 'Estável').sum() / len(df_regiao) * 100, 2),
                         "baixo": round((df_regiao['categoria'] == 'Baixo').sum() / len(df_regiao) * 100, 2),
-                        "risco": round((df_regiao['categoria'] == 'Risco alto + Crítico').sum() / len(df_regiao) * 100, 2),
+                        "risco_receita": round((df_regiao['categoria'] == 'Risco: Queda em Receita').sum() / len(df_regiao) * 100, 2),
+                "risco_engajamento": round((df_regiao['categoria'] == 'Risco: Queda em Engajamento').sum() / len(df_regiao) * 100, 2),
                     },
                     "top_3": df_regiao.nlargest(3, 'score_geral')[[id_col, 'score_geral', 'categoria', 'regiao']].to_dict('records')
                 }
@@ -592,7 +608,8 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                     "muito_bom": round((df_vip['categoria'] == 'Muito bom').sum() / len(df_vip) * 100, 2),
                     "estavel": round((df_vip['categoria'] == 'Estável').sum() / len(df_vip) * 100, 2),
                     "baixo": round((df_vip['categoria'] == 'Baixo').sum() / len(df_vip) * 100, 2),
-                    "risco": round((df_vip['categoria'] == 'Risco alto + Crítico').sum() / len(df_vip) * 100, 2),
+                    "risco_receita": round((df_vip['categoria'] == 'Risco: Queda em Receita').sum() / len(df_vip) * 100, 2),
+                "risco_engajamento": round((df_vip['categoria'] == 'Risco: Queda em Engajamento').sum() / len(df_vip) * 100, 2),
                 },
                 "top_3": df_vip.nlargest(3, 'score_geral')[[id_col, 'score_geral', 'categoria']].to_dict('records')
             }
@@ -805,7 +822,8 @@ async def export_excel():
             '% Muito Bom': resumo['distribuicao_categorias']['muito_bom'],
             '% Estável': resumo['distribuicao_categorias']['estavel'],
             '% Baixo': resumo['distribuicao_categorias']['baixo'],
-            '% Risco': resumo['distribuicao_categorias']['risco'],
+            '% Risco Queda Receita': resumo['distribuicao_categorias']['risco_receita'],
+            '% Risco Queda Engajamento': resumo['distribuicao_categorias']['risco_engajamento'],
         }])
         resumo_df.to_excel(writer, sheet_name='Resumo', index=False)
         
@@ -837,10 +855,6 @@ async def export_excel():
              'Mediana': resumo['estatisticas']['mediana_promos_3d'],
              'DesvPad': resumo['estatisticas']['desvpad_promos_3d'], 
              'Por Dia': resumo['benchmarks']['promos_por_dia']},
-            {'Métrica': 'Logins', 'Média 3d': resumo['estatisticas']['media_logins_3d'],
-             'Mediana': resumo['estatisticas']['mediana_logins_3d'],
-             'DesvPad': resumo['estatisticas']['desvpad_logins_3d'], 
-             'Por Dia': '-'},
         ]
         benchmarks_df = pd.DataFrame(benchmarks_data)
         benchmarks_df.to_excel(writer, sheet_name='Benchmarks', index=False)
@@ -863,7 +877,8 @@ async def export_excel():
                     '% Muito Bom': vip_stats['distribuicao_categorias']['muito_bom'],
                     '% Estável': vip_stats['distribuicao_categorias']['estavel'],
                     '% Baixo': vip_stats['distribuicao_categorias']['baixo'],
-                    '% Risco': vip_stats['distribuicao_categorias']['risco'],
+                    '% Risco Queda Receita': vip_stats['distribuicao_categorias']['risco_receita'],
+                    '% Risco Queda Engajamento': vip_stats['distribuicao_categorias']['risco_engajamento'],
                 })
             vip_df = pd.DataFrame(vip_data)
             vip_df.to_excel(writer, sheet_name='Analise_VIP', index=False)
@@ -926,9 +941,9 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
     print("  Acesse no navegador:")
-    print("  http://localhost:8000")
+    print("  http://localhost:8080")
     print()
     print("  Pressione CTRL+C para parar")
     print("=" * 60)
     print()
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8080)
