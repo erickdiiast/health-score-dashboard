@@ -4,21 +4,74 @@ Processa dados de jogadores e calcula métricas de saúde/engajamento
 Parâmetros dinâmicos calculados a partir dos dados carregados
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import io
 import json
-from typing import List, Dict, Any
+import sqlite3
+import os
+from typing import List, Dict, Any, Optional
 import uvicorn
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
-app = FastAPI(title="Health Score Dashboard", version="2.1.0")
+app = FastAPI(title="Health Score Dashboard", version="2.2.0")
+
+# Configuração do banco de dados SQLite
+DB_PATH = "historico.db"
+
+def init_db():
+    """Inicializa o banco de dados SQLite para histórico"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Tabela de snapshots do dia
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data TEXT NOT NULL,
+            data_timestamp TEXT NOT NULL,
+            total_jogadores INTEGER,
+            percentual_ativos REAL,
+            media_score_geral REAL,
+            media_score_login REAL,
+            media_score_engajamento REAL,
+            media_score_compras REAL,
+            cluster_elite INTEGER,
+            cluster_muito_bom INTEGER,
+            cluster_estavel INTEGER,
+            cluster_baixo INTEGER,
+            cluster_risco_receita INTEGER,
+            cluster_risco_engajamento INTEGER,
+            filtro_regiao TEXT DEFAULT 'all',
+            filtro_vip TEXT DEFAULT 'all'
+        )
+    ''')
+    
+    # Tabela de clusters por dia (para detalhamento)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clusters_dia (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            snapshot_id INTEGER,
+            cluster_nome TEXT,
+            quantidade INTEGER,
+            percentual REAL,
+            score_compras_medio REAL,
+            score_engajamento_medio REAL,
+            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+# Inicializa o banco na startup
+init_db()
 
 # CORS para permitir requisições do frontend
 app.add_middleware(
@@ -463,6 +516,170 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
     return df, params
 
 
+def salvar_snapshot(resumo: Dict, filtros: Dict = None) -> int:
+    """Salva um snapshot do dia no banco de dados"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    agora = datetime.now().isoformat()
+    
+    filtros = filtros or {}
+    filtro_regiao = filtros.get('regiao', 'all')
+    filtro_vip = filtros.get('vip', 'all')
+    
+    # Insere snapshot principal
+    cursor.execute('''
+        INSERT INTO snapshots (
+            data, data_timestamp, total_jogadores, percentual_ativos,
+            media_score_geral, media_score_login, media_score_engajamento, media_score_compras,
+            cluster_elite, cluster_muito_bom, cluster_estavel, cluster_baixo,
+            cluster_risco_receita, cluster_risco_engajamento,
+            filtro_regiao, filtro_vip
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        hoje, agora,
+        resumo.get('total_jogadores', 0),
+        resumo.get('percentual_ativos', 0),
+        resumo.get('media_pontuacao_geral', 0),
+        resumo.get('media_saude_login', 0),
+        resumo.get('media_saude_engajamento', 0),
+        resumo.get('media_saude_compras', 0),
+        resumo.get('contagem_por_categoria', {}).get('Elite', 0),
+        resumo.get('contagem_por_categoria', {}).get('Muito bom', 0),
+        resumo.get('contagem_por_categoria', {}).get('Estável', 0),
+        resumo.get('contagem_por_categoria', {}).get('Baixo', 0),
+        resumo.get('contagem_por_categoria', {}).get('Risco: Queda em Receita', 0),
+        resumo.get('contagem_por_categoria', {}).get('Risco: Queda em Engajamento', 0),
+        filtro_regiao, filtro_vip
+    ))
+    
+    snapshot_id = cursor.lastrowid
+    
+    # Insere detalhes dos clusters
+    contagem = resumo.get('contagem_por_categoria', {})
+    total = resumo.get('total_jogadores', 1)
+    
+    clusters_info = [
+        ('Elite', contagem.get('Elite', 0)),
+        ('Muito bom', contagem.get('Muito bom', 0)),
+        ('Estável', contagem.get('Estável', 0)),
+        ('Baixo', contagem.get('Baixo', 0)),
+        ('Risco: Queda em Receita', contagem.get('Risco: Queda em Receita', 0)),
+        ('Risco: Queda em Engajamento', contagem.get('Risco: Queda em Engajamento', 0)),
+    ]
+    
+    for nome, qtd in clusters_info:
+        cursor.execute('''
+            INSERT INTO clusters_dia (snapshot_id, cluster_nome, quantidade, percentual, score_compras_medio, score_engajamento_medio)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (snapshot_id, nome, qtd, round(qtd/total*100, 2) if total > 0 else 0, 0, 0))
+    
+    conn.commit()
+    conn.close()
+    return snapshot_id
+
+
+def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> List[Dict]:
+    """Lista histórico de snapshots com filtros opcionais"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM snapshots WHERE 1=1"
+    params = []
+    
+    if regiao and regiao != 'all':
+        query += " AND filtro_regiao = ?"
+        params.append(regiao)
+    if vip and vip != 'all':
+        query += " AND filtro_vip = ?"
+        params.append(vip)
+    
+    query += " ORDER BY data_timestamp DESC LIMIT ?"
+    params.append(dias)
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    
+    historico = []
+    for row in rows:
+        historico.append({
+            'id': row['id'],
+            'data': row['data'],
+            'data_timestamp': row['data_timestamp'],
+            'total_jogadores': row['total_jogadores'],
+            'percentual_ativos': row['percentual_ativos'],
+            'media_score_geral': row['media_score_geral'],
+            'media_score_login': row['media_score_login'],
+            'media_score_engajamento': row['media_score_engajamento'],
+            'media_score_compras': row['media_score_compras'],
+            'clusters': {
+                'Elite': row['cluster_elite'],
+                'Muito bom': row['cluster_muito_bom'],
+                'Estável': row['cluster_estavel'],
+                'Baixo': row['cluster_baixo'],
+                'Risco: Queda em Receita': row['cluster_risco_receita'],
+                'Risco: Queda em Engajamento': row['cluster_risco_engajamento'],
+            },
+            'filtro_regiao': row['filtro_regiao'],
+            'filtro_vip': row['filtro_vip'],
+        })
+    
+    conn.close()
+    return historico
+
+
+def comparar_periodos(data_inicio: str, data_fim: str) -> Dict:
+    """Compara dados entre dois períodos"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM snapshots 
+        WHERE data BETWEEN ? AND ?
+        ORDER BY data
+    ''', (data_inicio, data_fim))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    if not rows:
+        return {'mensagem': 'Nenhum dado encontrado para o período'}
+    
+    # Calcula médias e tendências
+    total_dias = len(rows)
+    media_jogadores = sum(r[3] for r in rows) / total_dias
+    media_ativos = sum(r[4] for r in rows) / total_dias
+    media_score = sum(r[5] for r in rows) / total_dias
+    
+    # Tendência (último vs primeiro dia)
+    primeira_data = rows[0]
+    ultima_data = rows[-1]
+    
+    return {
+        'periodo': {'inicio': data_inicio, 'fim': data_fim, 'dias': total_dias},
+        'medias': {
+            'total_jogadores': round(media_jogadores, 0),
+            'percentual_ativos': round(media_ativos, 2),
+            'score_geral': round(media_score, 2),
+        },
+        'tendencia': {
+            'total_jogadores': ultima_data[3] - primeira_data[3],
+            'percentual_ativos': round(ultima_data[4] - primeira_data[4], 2),
+            'score_geral': round(ultima_data[5] - primeira_data[5], 2),
+        },
+        'evolucao_diaria': [
+            {
+                'data': r[1],
+                'total_jogadores': r[3],
+                'percentual_ativos': r[4],
+                'score_geral': r[5],
+            } for r in rows
+        ]
+    }
+
+
 def clean_for_json(obj):
     """Limpa valores NaN, Infinity para serialização JSON"""
     if isinstance(obj, dict):
@@ -890,6 +1107,113 @@ async def export_excel():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=health_score_resultado.xlsx"}
     )
+
+
+# ========== ENDPOINTS DE HISTÓRICO ==========
+
+@app.post("/api/historico/salvar")
+async def salvar_historico(filtros: Dict[str, str] = None):
+    """Salva o estado atual como snapshot do dia"""
+    if not cached_data:
+        raise HTTPException(status_code=404, detail="Nenhum dado processado. Faça upload primeiro.")
+    
+    resumo = cached_data['resumo']
+    snapshot_id = salvar_snapshot(resumo, filtros)
+    
+    return {
+        "success": True,
+        "message": "Dados do dia salvos com sucesso",
+        "snapshot_id": snapshot_id,
+        "data": datetime.now().strftime("%Y-%m-%d")
+    }
+
+
+@app.get("/api/historico")
+async def get_historico(
+    regiao: str = Query(None, description="Filtro por região (es, br, int, all)"),
+    vip: str = Query(None, description="Filtro por VIP (1-5, all)"),
+    dias: int = Query(30, description="Número de dias no histórico")
+):
+    """Retorna histórico de snapshots com filtros"""
+    historico = listar_historico(regiao, vip, dias)
+    return {
+        "success": True,
+        "quantidade": len(historico),
+        "historico": historico
+    }
+
+
+@app.get("/api/historico/comparar")
+async def comparar_historico(
+    inicio: str = Query(..., description="Data início (YYYY-MM-DD)"),
+    fim: str = Query(..., description="Data fim (YYYY-MM-DD)")
+):
+    """Compara dados entre dois períodos"""
+    comparacao = comparar_periodos(inicio, fim)
+    return {
+        "success": True,
+        "comparacao": comparacao
+    }
+
+
+@app.get("/api/historico/executivo")
+async def get_resumo_executivo(
+    dias: int = Query(7, description="Dias para análise")
+):
+    """Retorna resumo executivo para apresentações"""
+    historico = listar_historico(dias=dias)
+    
+    if not historico:
+        return {
+            "success": False,
+            "message": "Nenhum histórico encontrado"
+        }
+    
+    # Último dia disponível
+    ultimo = historico[0]
+    
+    # Calcular variações se houver histórico anterior
+    variacoes = {}
+    if len(historico) > 1:
+        anterior = historico[1]
+        variacoes = {
+            'total_jogadores': round(ultimo['total_jogadores'] - anterior['total_jogadores'], 0),
+            'percentual_ativos': round(ultimo['percentual_ativos'] - anterior['percentual_ativos'], 2),
+            'score_geral': round(ultimo['media_score_geral'] - anterior['media_score_geral'], 2),
+        }
+    
+    # Totais por cluster (último dia)
+    clusters = ultimo['clusters']
+    total_jogadores = ultimo['total_jogadores']
+    
+    return {
+        "success": True,
+        "data_referencia": ultimo['data'],
+        "indicadores_principais": {
+            "total_jogadores": ultimo['total_jogadores'],
+            "percentual_ativos": ultimo['percentual_ativos'],
+            "score_geral_medio": ultimo['media_score_geral'],
+            "score_engajamento_medio": ultimo['media_score_engajamento'],
+            "score_compras_medio": ultimo['media_score_compras'],
+        },
+        "variacoes_dia": variacoes,
+        "distribuicao_clusters": {
+            "Elite": {"qtd": clusters['Elite'], "pct": round(clusters['Elite']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "Muito bom": {"qtd": clusters['Muito bom'], "pct": round(clusters['Muito bom']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "Estável": {"qtd": clusters['Estável'], "pct": round(clusters['Estável']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "Baixo": {"qtd": clusters['Baixo'], "pct": round(clusters['Baixo']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "Risco Receita": {"qtd": clusters['Risco: Queda em Receita'], "pct": round(clusters['Risco: Queda em Receita']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "Risco Engajamento": {"qtd": clusters['Risco: Queda em Engajamento'], "pct": round(clusters['Risco: Queda em Engajamento']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+        },
+        "evolucao": [
+            {
+                "data": h['data'],
+                "total_jogadores": h['total_jogadores'],
+                "percentual_ativos": h['percentual_ativos'],
+                "score_geral": h['media_score_geral'],
+            } for h in historico[:7]  # Últimos 7 dias
+        ]
+    }
 
 
 @app.get("/api/sample")

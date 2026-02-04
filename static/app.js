@@ -362,6 +362,9 @@ function renderTabContent(tabId, resumo) {
                 renderScoresChart(resumo);
             }
             break;
+        case 'tab-executivo':
+            renderResumoExecutivo();
+            break;
         case 'tab-vip':
             if (resumo.analise_vip) {
                 updateVIPSection(resumo.analise_vip);
@@ -1242,3 +1245,332 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+
+/* ========================================
+   RESUMO EXECUTIVO - FUNÇÕES
+   ======================================== */
+
+let execClustersChart = null;
+let execEvolucaoChart = null;
+
+/**
+ * Salva snapshot do dia no histórico
+ */
+async function salvarSnapshot() {
+    try {
+        const response = await fetch('/api/historico/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                regiao: regiaoAtual,
+                vip: vipAtual
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Dados do dia salvos com sucesso!', 'success');
+            carregarHistorico();
+        } else {
+            showToast('Erro ao salvar: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar snapshot:', error);
+        showToast('Erro ao salvar dados', 'error');
+    }
+}
+
+/**
+ * Carrega histórico com filtros
+ */
+async function carregarHistorico() {
+    try {
+        const regiao = document.getElementById('filtro-hist-regiao').value;
+        const vip = document.getElementById('filtro-hist-vip').value;
+        const dias = document.getElementById('filtro-hist-dias').value;
+        
+        const response = await fetch(`/api/historico?regiao=${regiao}&vip=${vip}&dias=${dias}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            atualizarTabelaHistorico(data.historico);
+            
+            // Se tiver dados, atualiza os gráficos
+            if (data.historico.length > 0) {
+                atualizarKPIsExecutivo(data.historico);
+                atualizarGraficoEvolucao(data.historico);
+                atualizarTabelaClusters(data.historico[0]);
+                
+                if (execClustersChart) {
+                    atualizarGraficoClusters(data.historico[0]);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+    }
+}
+
+/**
+ * Atualiza KPIs do Resumo Executivo
+ */
+function atualizarKPIsExecutivo(historico) {
+    if (historico.length === 0) return;
+    
+    const atual = historico[0];
+    const anterior = historico[1];
+    
+    // Atualiza valores
+    document.getElementById('exec-total-jogadores').textContent = atual.total_jogadores.toLocaleString();
+    document.getElementById('exec-percentual-ativos').textContent = atual.percentual_ativos.toFixed(1) + '%';
+    document.getElementById('exec-score-geral').textContent = atual.media_score_geral.toFixed(1);
+    document.getElementById('exec-score-compras').textContent = atual.media_score_compras.toFixed(1);
+    document.getElementById('exec-score-engajamento').textContent = atual.media_score_engajamento.toFixed(1);
+    
+    // Atualiza variações
+    if (anterior) {
+        atualizarVariacao('exec-var-total', atual.total_jogadores - anterior.total_jogadores, 0);
+        atualizarVariacao('exec-var-ativos', atual.percentual_ativos - anterior.percentual_ativos, 1);
+        atualizarVariacao('exec-var-score', atual.media_score_geral - anterior.media_score_geral, 1);
+        atualizarVariacao('exec-var-compras', atual.media_score_compras - anterior.media_score_compras, 1);
+        atualizarVariacao('exec-var-engajamento', atual.media_score_engajamento - anterior.media_score_engajamento, 1);
+    }
+}
+
+/**
+ * Atualiza elemento de variação
+ */
+function atualizarVariacao(elementId, valor, decimais) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    const sinal = valor > 0 ? '+' : '';
+    const cor = valor > 0 ? 'positivo' : (valor < 0 ? 'negativo' : 'neutro');
+    const icone = valor > 0 ? '▲' : (valor < 0 ? '▼' : '–');
+    
+    el.className = 'kpi-variacao ' + cor;
+    el.innerHTML = `${icone} ${sinal}${valor.toFixed(decimais)}`;
+}
+
+/**
+ * Atualiza tabela de clusters
+ */
+function atualizarTabelaClusters(ultimoDia) {
+    const tbody = document.getElementById('exec-clusters-body');
+    if (!tbody) return;
+    
+    const clusters = ultimoDia.clusters;
+    const total = ultimoDia.total_jogadores;
+    
+    const clusterNomes = {
+        'Elite': { icone: '🏆', cor: '#fbbf24' },
+        'Muito bom': { icone: '✅', cor: '#34d399' },
+        'Estável': { icone: '📊', cor: '#60a5fa' },
+        'Baixo': { icone: '⚠️', cor: '#fb923c' },
+        'Risco: Queda em Receita': { icone: '🚨', cor: '#ef4444' },
+        'Risco: Queda em Engajamento': { icone: '📉', cor: '#f59e0b' }
+    };
+    
+    let html = '';
+    for (const [nome, qtd] of Object.entries(clusters)) {
+        const info = clusterNomes[nome] || { icone: '●', cor: '#94a3b8' };
+        const pct = total > 0 ? (qtd / total * 100).toFixed(1) : 0;
+        
+        html += `
+            <tr>
+                <td><span style="color: ${info.cor}">${info.icone}</span> ${nome}</td>
+                <td>${qtd.toLocaleString()}</td>
+                <td>${pct}%</td>
+                <td>-</td>
+            </tr>
+        `;
+    }
+    
+    tbody.innerHTML = html;
+}
+
+/**
+ * Atualiza tabela de histórico
+ */
+function atualizarTabelaHistorico(historico) {
+    const tbody = document.getElementById('historico-body');
+    if (!tbody) return;
+    
+    let html = '';
+    for (const dia of historico.slice(0, 10)) {
+        const clusters = dia.clusters;
+        const riscos = (clusters['Risco: Queda em Receita'] || 0) + (clusters['Risco: Queda em Engajamento'] || 0);
+        
+        html += `
+            <tr>
+                <td>${new Date(dia.data).toLocaleDateString('pt-BR')}</td>
+                <td>${dia.total_jogadores.toLocaleString()}</td>
+                <td>${dia.percentual_ativos.toFixed(1)}%</td>
+                <td>${dia.media_score_geral.toFixed(1)}</td>
+                <td>${(clusters['Elite'] || 0).toLocaleString()}</td>
+                <td>${riscos.toLocaleString()}</td>
+            </tr>
+        `;
+    }
+    
+    tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center">Nenhum histórico encontrado</td></tr>';
+}
+
+/**
+ * Atualiza gráfico de evolução
+ */
+function atualizarGraficoEvolucao(historico) {
+    const ctx = document.getElementById('execEvolucaoChart');
+    if (!ctx) return;
+    
+    if (execEvolucaoChart) {
+        execEvolucaoChart.destroy();
+    }
+    
+    const dados = historico.slice(0, 15).reverse();
+    const labels = dados.map(d => new Date(d.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+    
+    execEvolucaoChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Score Geral',
+                    data: dados.map(d => d.media_score_geral),
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: '% Ativos',
+                    data: dados.map(d => d.percentual_ativos),
+                    borderColor: '#10b981',
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                },
+                y1: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Atualiza gráfico de clusters
+ */
+function atualizarGraficoClusters(ultimoDia) {
+    const ctx = document.getElementById('execClustersChart');
+    if (!ctx) return;
+    
+    if (execClustersChart) {
+        execClustersChart.destroy();
+    }
+    
+    const clusters = ultimoDia.clusters;
+    const total = ultimoDia.total_jogadores;
+    
+    execClustersChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Elite', 'Muito bom', 'Estável', 'Baixo', 'Risco Receita', 'Risco Engajamento'],
+            datasets: [{
+                data: [
+                    clusters['Elite'] || 0,
+                    clusters['Muito bom'] || 0,
+                    clusters['Estável'] || 0,
+                    clusters['Baixo'] || 0,
+                    clusters['Risco: Queda em Receita'] || 0,
+                    clusters['Risco: Queda em Engajamento'] || 0
+                ],
+                backgroundColor: [
+                    '#fbbf24',
+                    '#34d399',
+                    '#60a5fa',
+                    '#fb923c',
+                    '#ef4444',
+                    '#f59e0b'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.raw;
+                            const pct = total > 0 ? (val / total * 100).toFixed(1) : 0;
+                            return `${context.label}: ${val.toLocaleString()} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Mostra toast notification
+ */
+function showToast(message, type = 'info') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    
+    const icon = type === 'success' ? '✓' : (type === 'error' ? '✕' : 'ℹ');
+    toast.innerHTML = `<span>${icon}</span> ${message}`;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideIn 0.3s ease reverse';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+/**
+ * Renderiza conteúdo da aba Resumo Executivo quando ativada
+ */
+function renderResumoExecutivo() {
+    carregarHistorico();
+}
