@@ -74,16 +74,44 @@
                     </button>
                 </nav>
 
+                <!-- VIP Level Tabs -->
+                <nav class="vip-tabs">
+                    <button class="vip-btn active" onclick="showVIP('all')" id="vip-btn-all">
+                        <i class="fas fa-gem"></i> Todos VIPs
+                    </button>
+                    <button class="vip-btn" onclick="showVIP('1')" id="vip-btn-1">
+                        <i class="fas fa-gem" style="color: #9B59B6;"></i> Ametista
+                    </button>
+                    <button class="vip-btn" onclick="showVIP('2')" id="vip-btn-2">
+                        <i class="fas fa-gem" style="color: #F39C12;"></i> Topázio
+                    </button>
+                    <button class="vip-btn" onclick="showVIP('3')" id="vip-btn-3">
+                        <i class="fas fa-gem" style="color: #27AE60;"></i> Esmeralda
+                    </button>
+                    <button class="vip-btn" onclick="showVIP('4')" id="vip-btn-4">
+                        <i class="fas fa-gem" style="color: #E74C3C;"></i> Opala
+                    </button>
+                    <button class="vip-btn" onclick="showVIP('5')" id="vip-btn-5">
+                        <i class="fas fa-gem" style="color: #3498DB;"></i> Berilo
+                    </button>
+                </nav>
+
                 <!-- Navigation Tabs (Inferior) -->
                 <nav class="dashboard-tabs">
                     <button class="tab-btn active" onclick="showTab('tab-overview')" id="tab-btn-overview">
                         <i class="fas fa-chart-pie"></i> Visão Geral
+                    </button>
+                    <button class="tab-btn" onclick="showTab('tab-executivo')" id="tab-btn-executivo">
+                        <i class="fas fa-presentation"></i> Resumo Executivo
                     </button>
                     <button class="tab-btn" onclick="showTab('tab-vip')" id="tab-btn-vip">
                         <i class="fas fa-gem"></i> Análise VIP
                     </button>
                     <button class="tab-btn" onclick="showTab('tab-players')" id="tab-btn-players">
                         <i class="fas fa-users"></i> Jogadores
+                    </button>
+                    <button class="tab-btn" onclick="showTab('tab-clusters')" id="tab-btn-clusters">
+                        <i class="fas fa-layer-group"></i> Clusters
                     </button>
                     <button class="tab-btn" onclick="showTab('tab-benchmarks')" id="tab-btn-benchmarks">
                         <i class="fas fa-cogs"></i> Benchmarks
@@ -243,6 +271,154 @@
                     </section>
                 </div>
 
+                <!-- Tab: Resumo Executivo -->
+                <div id="tab-executivo" class="tab-content">
+                    <section class="executivo-section">
+                        <div class="executivo-header">
+                            <h3><i class="fas fa-presentation"></i> Resumo Executivo para Apresentações</h3>
+                            <button class="btn btn-primary" onclick="salvarSnapshot()">
+                                <i class="fas fa-save"></i> Salvar Dados do Dia
+                            </button>
+                        </div>
+                        
+                        <!-- Filtros do Histórico -->
+                        <div class="filtros-historico">
+                            <div class="filtro-grupo">
+                                <label>Região:</label>
+                                <select id="filtro-hist-regiao" onchange="carregarHistorico()">
+                                    <option value="all">Todas</option>
+                                    <option value="br">Brasil</option>
+                                    <option value="es">Espanhol</option>
+                                    <option value="int">Internacional</option>
+                                </select>
+                            </div>
+                            <div class="filtro-grupo">
+                                <label>VIP:</label>
+                                <select id="filtro-hist-vip" onchange="carregarHistorico()">
+                                    <option value="all">Todos</option>
+                                    <option value="1">Ametista</option>
+                                    <option value="2">Topázio</option>
+                                    <option value="3">Esmeralda</option>
+                                    <option value="4">Opala</option>
+                                    <option value="5">Berilo</option>
+                                </select>
+                            </div>
+                            <div class="filtro-grupo">
+                                <label>Dias:</label>
+                                <select id="filtro-hist-dias" onchange="carregarHistorico()">
+                                    <option value="7">7 dias</option>
+                                    <option value="15">15 dias</option>
+                                    <option value="30" selected>30 dias</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- KPIs Executivos -->
+                        <div class="kpi-grid executivo-kpis" id="executivo-kpis">
+                            <div class="kpi-card kpi-executivo">
+                                <div class="kpi-icon bg-blue">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-label">Total Jogadores</span>
+                                    <span class="kpi-value" id="exec-total-jogadores">-</span>
+                                    <span class="kpi-variacao" id="exec-var-total"></span>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-executivo">
+                                <div class="kpi-icon bg-green">
+                                    <i class="fas fa-bolt"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-label">% Ativos</span>
+                                    <span class="kpi-value" id="exec-percentual-ativos">-</span>
+                                    <span class="kpi-variacao" id="exec-var-ativos"></span>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-executivo">
+                                <div class="kpi-icon bg-purple">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-label">Score Geral</span>
+                                    <span class="kpi-value" id="exec-score-geral">-</span>
+                                    <span class="kpi-variacao" id="exec-var-score"></span>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-executivo">
+                                <div class="kpi-icon bg-orange">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-label">Score Compras</span>
+                                    <span class="kpi-value" id="exec-score-compras">-</span>
+                                    <span class="kpi-variacao" id="exec-var-compras"></span>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-executivo">
+                                <div class="kpi-icon bg-teal">
+                                    <i class="fas fa-gamepad"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-label">Score Engajamento</span>
+                                    <span class="kpi-value" id="exec-score-engajamento">-</span>
+                                    <span class="kpi-variacao" id="exec-var-engajamento"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Distribuição de Clusters -->
+                        <div class="chart-row">
+                            <div class="chart-card">
+                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Cluster</h4>
+                                <canvas id="execClustersChart"></canvas>
+                            </div>
+                            <div class="chart-card">
+                                <h4><i class="fas fa-chart-line"></i> Evolução dos Indicadores</h4>
+                                <canvas id="execEvolucaoChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Tabela de Clusters -->
+                        <div class="clusters-resumo">
+                            <h4><i class="fas fa-table"></i> Resumo por Cluster</h4>
+                            <table class="data-table" id="exec-clusters-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cluster</th>
+                                        <th>Quantidade</th>
+                                        <th>% do Total</th>
+                                        <th>Tendência</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="exec-clusters-body">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Histórico -->
+                        <div class="historico-section">
+                            <h4><i class="fas fa-history"></i> Histórico de Snapshots</h4>
+                            <div class="table-container">
+                                <table class="data-table" id="historico-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Total Jogadores</th>
+                                            <th>% Ativos</th>
+                                            <th>Score Geral</th>
+                                            <th>Elite</th>
+                                            <th>Riscos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historico-body">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
                 <!-- Tab: Análise VIP -->
                 <div id="tab-vip" class="tab-content">
                     <section class="vip-section">
@@ -331,6 +507,194 @@
                                 <tbody id="risco-engajamento-body">
                                 </tbody>
                             </table>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Tab: Clusters -->
+                <div id="tab-clusters" class="tab-content">
+                    <section class="clusters-section">
+                        <h3><i class="fas fa-layer-group"></i> Top 50 Jogadores por Cluster</h3>
+                        <p class="clusters-desc">Visualize os melhores jogadores de cada categoria de saúde. Clique para expandir.</p>
+                        
+                        <!-- Elite -->
+                        <div class="cluster-card">
+                            <div class="cluster-header" onclick="toggleCluster('elite')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">🏆</span>
+                                    <span class="cluster-name">Elite</span>
+                                    <span class="cluster-badge badge-elite">Score ≥ 80</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-elite-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-elite-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-elite-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-elite-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Muito Bom -->
+                        <div class="cluster-card">
+                            <div class="cluster-header" onclick="toggleCluster('muito-bom')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">✅</span>
+                                    <span class="cluster-name">Muito Bom</span>
+                                    <span class="cluster-badge badge-muito-bom">Score 65-79</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-muito-bom-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-muito-bom-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-muito-bom-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-muito-bom-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Estável -->
+                        <div class="cluster-card">
+                            <div class="cluster-header" onclick="toggleCluster('estavel')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">📊</span>
+                                    <span class="cluster-name">Estável</span>
+                                    <span class="cluster-badge badge-estavel">Score 50-64</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-estavel-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-estavel-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-estavel-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-estavel-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Baixo -->
+                        <div class="cluster-card">
+                            <div class="cluster-header" onclick="toggleCluster('baixo')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">⚠️</span>
+                                    <span class="cluster-name">Baixo</span>
+                                    <span class="cluster-badge badge-baixo">Score 35-49</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-baixo-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-baixo-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-baixo-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-baixo-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Risco Queda Receita -->
+                        <div class="cluster-card cluster-risco">
+                            <div class="cluster-header" onclick="toggleCluster('risco-receita')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">🚨</span>
+                                    <span class="cluster-name">Risco: Queda em Receita</span>
+                                    <span class="cluster-badge badge-risco-receita">Score < 35</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-risco-receita-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-risco-receita-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-risco-receita-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-risco-receita-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Risco Queda Engajamento -->
+                        <div class="cluster-card cluster-risco">
+                            <div class="cluster-header" onclick="toggleCluster('risco-engajamento')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">📉</span>
+                                    <span class="cluster-name">Risco: Queda em Engajamento</span>
+                                    <span class="cluster-badge badge-risco-engajamento">Score < 35</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-risco-engajamento-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-risco-engajamento-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-risco-engajamento-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-risco-engajamento-body"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </section>
                 </div>
