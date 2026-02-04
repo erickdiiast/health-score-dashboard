@@ -348,110 +348,127 @@ class HealthScoreCalculator:
     
     def calcular_score_engajamento(self, df: pd.DataFrame) -> pd.Series:
         """
-        Calcula score de engajamento com parâmetros dinâmicos:
-        - Nível VIP
-        - Torneios (média dinâmica)
-        - Maratonas (média dinâmica)
-        - Missões (média dinâmica)
-        - Promoções (média dinâmica)
+        Calcula score de engajamento ponderado:
+        - Atividades (60%): Torneios, Maratonas, Missões, Promoções
+        - Nível VIP (40%): Comprometimento histórico
         """
         scores = []
         
         for _, row in df.iterrows():
             pontuacoes = []
+            pesos = []
             
-            # Nível VIP
-            if 'nivel_vip' in df.columns and pd.notna(row.get('nivel_vip')):
-                vip = row['nivel_vip']
-                vip_score = min((vip / 5) * 100, 100)
-                pontuacoes.append(vip_score)
+            # 1. Atividades em conjunto (60% de peso)
+            atividades_scores = []
+            atividades_pesos = []
             
-            # Torneios
+            # Torneios (peso 2)
             if 'qtd_torneios_3d' in df.columns:
-                torneios = row.get('qtd_torneios_3d', 0)
-                if pd.notna(torneios):
-                    torneios_score = min(torneios * self.params['torneios_factor'], 100)
-                    pontuacoes.append(torneios_score)
+                torneios = row.get('qtd_torneios_3d', 0) or 0
+                torneios_score = min(torneios * self.params.get('torneios_factor', 2.2), 100)
+                atividades_scores.append(torneios_score * 2)
+                atividades_pesos.append(2)
             
-            # Maratonas
+            # Maratonas (peso 2.5)
             if 'qtd_maratonas_3d' in df.columns:
-                maratonas = row.get('qtd_maratonas_3d', 0)
-                if pd.notna(maratonas):
-                    maratonas_score = min(maratonas * self.params['maratonas_factor'], 100)
-                    pontuacoes.append(maratonas_score)
+                maratonas = row.get('qtd_maratonas_3d', 0) or 0
+                maratonas_score = min(maratonas * self.params.get('maratonas_factor', 6.6), 100)
+                atividades_scores.append(maratonas_score * 2.5)
+                atividades_pesos.append(2.5)
             
-            # Missões
+            # Missões (peso 1.5)
             if 'qtd_missoes_3d' in df.columns:
-                missoes = row.get('qtd_missoes_3d', 0)
-                if pd.notna(missoes):
-                    missoes_score = min(missoes * self.params['missoes_factor'], 100)
-                    pontuacoes.append(missoes_score)
+                missoes = row.get('qtd_missoes_3d', 0) or 0
+                missoes_score = min(missoes * self.params.get('missoes_factor', 11.1), 100)
+                atividades_scores.append(missoes_score * 1.5)
+                atividades_pesos.append(1.5)
             
-            # Promoções
+            # Promoções (peso 1)
             if 'qtd_promos_3d' in df.columns:
-                promos = row.get('qtd_promos_3d', 0)
-                if pd.notna(promos):
-                    promos_score = min(promos * self.params['promos_factor'], 100)
-                    pontuacoes.append(promos_score)
+                promos = row.get('qtd_promos_3d', 0) or 0
+                promos_score = min(promos * self.params.get('promos_factor', 3.7), 100)
+                atividades_scores.append(promos_score * 1)
+                atividades_pesos.append(1)
+            
+            if atividades_scores:
+                atividades_final = sum(atividades_scores) / sum(atividades_pesos)
+                pontuacoes.append(atividades_final * 0.60)
+                pesos.append(0.60)
+            
+            # 2. Nível VIP (40% de peso)
+            if 'nivel_vip' in df.columns and pd.notna(row.get('nivel_vip')):
+                vip = row.get('nivel_vip', 1)
+                # VIP 1 = 20%, VIP 5 = 100%
+                vip_score = 20 + ((vip - 1) / 4) * 80
+                pontuacoes.append(vip_score * 0.40)
+                pesos.append(0.40)
             
             if pontuacoes:
-                scores.append(np.mean(pontuacoes))
+                score_final = sum(pontuacoes) / sum(pesos)
+                scores.append(score_final)
             else:
-                scores.append(50)
+                scores.append(40)
         
         return pd.Series(scores)
     
     def calcular_score_compras(self, df: pd.DataFrame) -> pd.Series:
         """
-        Calcula score de compras baseado em:
-        - Quantidade de compras nos últimos 7 dias
-        - Recência da última compra
-        - Ticket médio (se disponível)
+        Calcula score de compras ponderado:
+        - Quantidade (40%): Frequência gera hábito
+        - Ticket Médio (35%): Valor monetário
+        - Recência (25%): Quanto mais recente, melhor
         """
         scores = []
         hoje = datetime.now()
         
+        # Calcula médias dinâmicas para benchmarks
+        media_qtd = df['qtd_compras_7d'].mean() if 'qtd_compras_7d' in df.columns else 2
+        media_ticket = df['ticket_medio_7d'].mean() if 'ticket_medio_7d' in df.columns else 50
+        
         for _, row in df.iterrows():  
             pontuacoes = []
+            pesos = []
             
-            # Quantidade de compras nos últimos 7 dias
+            # 1. Quantidade de compras (40% de peso)
             if 'qtd_compras_7d' in df.columns:
-                qtd = row.get('qtd_compras_7d', 0)
-                if pd.notna(qtd):
-                    # Calcula média dinâmica se possível
-                    media_compras = df['qtd_compras_7d'].mean()
-                    if media_compras > 0:
-                        factor = 100 / (media_compras * 1.5)
-                    else:
-                        factor = 33.33
-                    qtd_score = min(qtd * factor, 100)
-                    pontuacoes.append(qtd_score)
+                qtd = row.get('qtd_compras_7d', 0) or 0
+                if media_qtd > 0:
+                    # Score: 100 = 1.5x a média
+                    qtd_score = min((qtd / (media_qtd * 1.5)) * 100, 100)
+                else:
+                    qtd_score = min(qtd * 33.33, 100)
+                pontuacoes.append(qtd_score * 0.40)
+                pesos.append(0.40)
             
-            # Ticket médio
+            # 2. Ticket médio (35% de peso)
             if 'ticket_medio_7d' in df.columns:
-                ticket = row.get('ticket_medio_7d', 0)
-                if pd.notna(ticket) and ticket > 0:
-                    media_ticket = df['ticket_medio_7d'].mean()
-                    if media_ticket > 0:
-                        ticket_score = min(ticket / (media_ticket * 1.5) * 100, 100)
-                    else:
-                        ticket_score = min(ticket / 50 * 100, 100)
-                    pontuacoes.append(ticket_score)
+                ticket = row.get('ticket_medio_7d', 0) or 0
+                if media_ticket > 0:
+                    # Score: 100 = 1.5x a média do ticket
+                    ticket_score = min((ticket / (media_ticket * 1.5)) * 100, 100)
+                else:
+                    ticket_score = min(ticket / 50 * 100, 100)
+                pontuacoes.append(ticket_score * 0.35)
+                pesos.append(0.35)
             
-            # Recência da última compra
+            # 3. Recência da última compra (25% de peso)
             if 'ultima_compra' in df.columns and pd.notna(row.get('ultima_compra')):
                 try:
                     ultima = pd.to_datetime(row['ultima_compra'])
                     dias_ultima = (hoje - ultima).days
+                    # Decaimento: 100% no dia 0, 50% aos 21 dias, 25% aos 42 dias
                     recencia_score = 100 * np.exp(-max(0, dias_ultima) / 30)
-                    pontuacoes.append(recencia_score)
+                    pontuacoes.append(recencia_score * 0.25)
+                    pesos.append(0.25)
                 except:
                     pass
             
             if pontuacoes:
-                scores.append(np.mean(pontuacoes))
+                # Média ponderada
+                score_final = sum(pontuacoes) / sum(pesos) if sum(pesos) > 0 else 30
+                scores.append(score_final)
             else:
-                scores.append(30)
+                scores.append(0)  # Sem dados de compra = 0
         
         return pd.Series(scores)
     
@@ -464,26 +481,104 @@ class HealthScoreCalculator:
         return engajamento * 0.3 + compras * 0.7
     
     def categorizar_jogador(self, row: pd.Series) -> str:
-        """Categoriza jogador baseado no score geral"""
-        score = row.get('score_geral', 50)
+        """
+        Categoriza jogador com granularidade para ações de CRM:
         
-        if score >= 80:
-            return "Elite"
-        elif score >= 65:
-            return "Muito bom"
-        elif score >= 50:
-            return "Estável"
-        elif score >= 35:
-            return "Baixo"
-        else:
-            # Risco - identifica a causa
-            score_compras = row.get('score_compras', 0)
-            score_engajamento = row.get('score_engajamento', 0)
-            
-            if score_compras < score_engajamento:
-                return "Risco: Queda em Receita"
+        Hierarquia de categorização:
+        1. Primeiro verifica oportunidades (alto engajamento + baixas compras)
+        2. Depois categoriza por score geral
+        3. Por fim, identifica tipo de risco
+        """
+        score_geral = row.get('score_geral', 50)
+        score_compras = row.get('score_compras', 0)
+        score_engajamento = row.get('score_engajamento', 0)
+        nivel_vip = row.get('nivel_vip', 1)
+        
+        # OPORTUNIDADES: Alto engajamento mas compras baixas
+        # Estes são prioritários para CRM pois têm potencial
+        if score_engajamento >= 60 and score_compras < 40:
+            if nivel_vip >= 3:
+                return "💰 Oportunidade VIP"
             else:
-                return "Risco: Queda em Engajamento"
+                return "💰 Oportunidade"
+        
+        # POTENCIAL: Bom engajamento, compras médias
+        if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
+            return "🎯 Potencial"
+        
+        # Categorização por score geral (mais granular)
+        if score_geral >= 90:
+            return "⭐ Elite"
+        elif score_geral >= 80:
+            return "🏆 VIP Ativo"
+        elif score_geral >= 65:
+            return "📈 Bom"
+        elif score_geral >= 50:
+            return "📊 Estável"
+        elif score_geral >= 40:
+            return "⚠️ Atenção"
+        elif score_geral >= 25:
+            # Risco moderado - identificar causa
+            if score_compras < 25 and score_engajamento < 35:
+                return "🚨 Risco Alto"
+            elif score_compras < score_engajamento:
+                return "🚨 Risco: Queda Receita"
+            else:
+                return "🚨 Risco: Queda Engajamento"
+        else:
+            # Score < 25 = Crítico
+            if score_compras < 15 and score_engajamento < 20:
+                return "💎 Churn Iminente"
+            elif score_compras < score_engajamento:
+                return "🚨 Risco: Queda Receita"
+            else:
+                return "🚨 Risco: Queda Engajamento"
+
+
+def get_expectativa_vip(nivel: int) -> Dict:
+    """
+    Retorna expectativas de compra por nível VIP
+    Usado para comparar performance real vs esperada
+    """
+    expectativas = {
+        1: {'compras_7d': 1, 'ticket_medio': 20, 'label': 'Iniciante'},
+        2: {'compras_7d': 2, 'ticket_medio': 35, 'label': 'Regular'},
+        3: {'compras_7d': 3, 'ticket_medio': 50, 'label': 'Fiel'},
+        4: {'compras_7d': 4, 'ticket_medio': 75, 'label': 'Premium'},
+        5: {'compras_7d': 5, 'ticket_medio': 100, 'label': 'Elite'}
+    }
+    return expectativas.get(int(nivel) if pd.notna(nivel) else 1, expectativas[1])
+
+
+def calcular_status_vip(row: pd.Series) -> str:
+    """
+    Compara performance do jogador com a expectativa do seu VIP
+    Retorna: acima, na_media, abaixo, critico
+    """
+    nivel = row.get('nivel_vip', 1)
+    expectativa = get_expectativa_vip(nivel)
+    
+    qtd_real = row.get('qtd_compras_7d', 0) or 0
+    ticket_real = row.get('ticket_medio_7d', 0) or 0
+    
+    qtd_esperada = expectativa['compras_7d']
+    ticket_esperado = expectativa['ticket_medio']
+    
+    # Calcula performance (0 a 200%)
+    perf_qtd = (qtd_real / qtd_esperada * 100) if qtd_esperada > 0 else 0
+    perf_ticket = (ticket_real / ticket_esperado * 100) if ticket_esperado > 0 else 0
+    
+    # Média ponderada: quantidade pesa mais
+    performance = (perf_qtd * 0.6) + (perf_ticket * 0.4)
+    
+    if performance >= 120:
+        return "🏆 Superando"
+    elif performance >= 90:
+        return "✅ Dentro da meta"
+    elif performance >= 60:
+        return "⚠️ Abaixo do esperado"
+    else:
+        return "🚨 Crítico"
 
 
 def detectar_tipo_arquivo(filename: str) -> str:
@@ -533,15 +628,29 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
         df['regiao'] = 'int'  # Default: Internacional
     
     # Define ação sugerida baseada na categoria
-    df['acao_sugerida'] = df['categoria'].map({
-        'Elite': 'Manter engajamento',
-        'Muito bom': 'Incentivar compras',
-        'Estável': 'Aumentar frequência',
-        'Baixo': 'Reengajamento',
-        'Risco alto + Crítico': 'Ação imediata!',
-        'Risco: Queda em Receita': 'Foco em compras',
-        'Risco: Queda em Engajamento': 'Foco em engajamento'
-    })
+    # Define ação sugerida baseada na categoria
+    acoes_crm = {
+        '⭐ Elite': '✨ Benefícios exclusivos + Personalização',
+        '🏆 VIP Ativo': '🎁 Recompensas + Upsell',
+        '📈 Bom': '💳 Incentivar mais compras',
+        '📊 Estável': '📱 Manter ritmo + Notificações',
+        '⚠️ Atenção': '🔔 Reengajamento ativo',
+        '🚨 Risco Alto': '⚡ Oferta especial urgente',
+        '🚨 Risco: Queda Receita': '🛒 Foco em conversão',
+        '🚨 Risco: Queda Engajamento': '🎮 Foco em atividades',
+        '💎 Churn Iminente': '📞 Ligação + Oferta última chance',
+        '💰 Oportunidade VIP': '💎 Atendimento VIP + Oferta personalizada',
+        '💰 Oportunidade': '🎁 Oferta de boas-vindas + Onboarding',
+        '🎯 Potencial': '📈 Nutrir + Incentivo gradual'
+    }
+    
+    df['acao_sugerida'] = df['categoria'].map(acoes_crm)
+    df['acao_sugerida'] = df['acao_sugerida'].fillna('📊 Acompanhamento geral')
+    
+    # Adiciona expectativa e status por VIP
+    if 'nivel_vip' in df.columns:
+        df['vip_expectativa'] = df['nivel_vip'].apply(lambda x: get_expectativa_vip(x)['label'])
+        df['vip_status'] = df.apply(calcular_status_vip, axis=1)
     
     # Adiciona informações de VIP
     if 'nivel_vip' in df.columns:
