@@ -1326,15 +1326,18 @@ async def generate_sample():
 
 
 if __name__ == "__main__":
-    import sys
+    # Porta dinâmica para deploy (Render, Railway, etc)
+    port = int(os.environ.get("PORT", 8080))
+    host = os.environ.get("HOST", "127.0.0.1")
+    
     print("=" * 60)
     print("  Health Score Dashboard - Iniciando servidor...")
     print("=" * 60)
     print()
-    print("  Acesse no navegador:")
-    print("  http://localhost:8080")
+    print(f"  Acesse no navegador:")
+    print(f"  http://{host}:{port}")
     print()
     print("  Pressione CTRL+C para parar")
     print("=" * 60)
     print()
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+    uvicorn.run(app, host=host, port=port)
