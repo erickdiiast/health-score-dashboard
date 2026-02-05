@@ -1407,10 +1407,11 @@ async function carregarHistorico() {
             if (data.historico.length > 0) {
                 atualizarKPIsExecutivo(data.historico);
                 atualizarGraficoEvolucao(data.historico);
-                atualizarTabelaClusters(data.historico[0]);
+                const ultimoDia = data.historico[data.historico.length - 1];
+                atualizarTabelaClusters(ultimoDia);
                 
                 if (execClustersChart) {
-                    atualizarGraficoClusters(data.historico[0]);
+                    atualizarGraficoClusters(ultimoDia);
                 }
             }
         }
@@ -1425,8 +1426,9 @@ async function carregarHistorico() {
 function atualizarKPIsExecutivo(historico) {
     if (historico.length === 0) return;
     
-    const atual = historico[0];
-    const anterior = historico[1];
+    // Pega o último (mais recente) e o penúltimo
+    const atual = historico[historico.length - 1];
+    const anterior = historico.length > 1 ? historico[historico.length - 2] : null;
     
     // Atualiza valores
     document.getElementById('exec-total-jogadores').textContent = atual.total_jogadores.toLocaleString();
@@ -1510,15 +1512,18 @@ function atualizarTabelaHistorico(historico) {
     const tbody = document.getElementById('historico-body');
     if (!tbody) return;
     
+    // Inverte para mostrar do mais novo para o mais antigo
+    const historicoInvertido = [...historico].reverse();
+    
     let html = '';
-    for (const dia of historico.slice(0, 10)) {
+    for (const dia of historicoInvertido.slice(0, 10)) {
         const clusters = dia.clusters;
         const riscos = (clusters['Risco: Queda em Receita'] || 0) + (clusters['Risco: Queda em Engajamento'] || 0);
         
         html += `
             <tr>
                 <td>#${dia.id}</td>
-                <td>${new Date(dia.data).toLocaleDateString('pt-BR')}</td>
+                <td>${dia.data ? new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
                 <td>${dia.total_jogadores.toLocaleString()}</td>
                 <td>${dia.percentual_ativos.toFixed(1)}%</td>
                 <td>${dia.media_score_geral.toFixed(1)}</td>

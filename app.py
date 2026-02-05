@@ -767,7 +767,7 @@ def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> Lis
         query += " AND filtro_vip = ?"
         params.append(vip)
     
-    query += " ORDER BY data_timestamp DESC LIMIT ?"
+    query += " ORDER BY data ASC LIMIT ?"  # Ordena por data do snapshot (mais antigo primeiro)
     params.append(dias)
     
     cursor.execute(query, params)
