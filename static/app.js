@@ -781,7 +781,15 @@ function updateClusterTable(clusterId, jogadores) {
  * Atualiza todas as tabelas de clusters
  */
 function updateClustersSection(dados) {
-    if (!dados) return;
+    if (!dados) {
+        console.log('updateClustersSection: dados vazios');
+        return;
+    }
+    
+    // Debug: mostra categorias únicas
+    const categoriasUnicas = [...new Set(dados.map(j => j.categoria))];
+    console.log('Categorias encontradas:', categoriasUnicas);
+    console.log('Total jogadores:', dados.length);
     
     // Filtra top 50 de cada categoria (mapeando para IDs existentes no HTML)
     const elite = dados.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
@@ -789,8 +797,15 @@ function updateClustersSection(dados) {
     const bom = dados.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     const estavel = dados.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     const atencao = dados.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const riscoAlto = dados.filter(j => j.categoria === '🚨 Risco Alto').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const churn = dados.filter(j => j.categoria === '💎 Churn Iminente').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const oportunidade = dados.filter(j => j.categoria === '💰 Oportunidade').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const oportunidadeVip = dados.filter(j => j.categoria === '💰 Oportunidade VIP').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const potencial = dados.filter(j => j.categoria === '🎯 Potencial').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     const riscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     const riscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    
+    console.log('Contagem - Elite:', elite.length, 'VIP Ativo:', vipAtivo.length, 'Estável:', estavel.length, 'Atenção:', atencao.length);
     
     // Atualiza tabelas existentes
     updateClusterTable('elite', elite);
