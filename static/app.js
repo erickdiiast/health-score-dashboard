@@ -1469,27 +1469,31 @@ function atualizarTabelaClusters(ultimoDia) {
     const tbody = document.getElementById('exec-clusters-body');
     if (!tbody) return;
     
-    const clusters = ultimoDia.clusters;
-    const total = ultimoDia.total_jogadores;
+    const clusters = ultimoDia.clusters || {};
+    const total = ultimoDia.total_jogadores || 0;
     
-    const clusterNomes = {
-        '⭐ Elite': { icone: '⭐', cor: '#fbbf24' },
-        '🏆 VIP Ativo': { icone: '🏆', cor: '#34d399' },
-        '📈 Bom': { icone: '📈', cor: '#34d399' },
-        '📊 Estável': { icone: '📊', cor: '#60a5fa' },
-        '⚠️ Atenção': { icone: '⚠️', cor: '#fb923c' },
-        '🚨 Risco Alto': { icone: '🚨', cor: '#ef4444' },
-        '💎 Churn Iminente': { icone: '💎', cor: '#ef4444' },
-        '🚨 Risco: Queda Receita': { icone: '🚨', cor: '#ef4444' },
-        '🚨 Risco: Queda Engajamento': { icone: '📉', cor: '#f59e0b' },
-        '💰 Oportunidade': { icone: '💰', cor: '#a78bfa' },
-        '💰 Oportunidade VIP': { icone: '💎', cor: '#a78bfa' },
-        '🎯 Potencial': { icone: '🎯', cor: '#60a5fa' }
+    // Agrupa as novas categorias nos 6 grupos da tabela
+    const grupos = {
+        'Elite': (clusters['⭐ Elite'] || 0) + (clusters['💰 Oportunidade VIP'] || 0),
+        'Muito bom': (clusters['🏆 VIP Ativo'] || 0) + (clusters['📈 Bom'] || 0) + (clusters['💰 Oportunidade'] || 0) + (clusters['🎯 Potencial'] || 0),
+        'Estável': clusters['📊 Estável'] || 0,
+        'Baixo': (clusters['⚠️ Atenção'] || 0) + (clusters['🚨 Risco Alto'] || 0) + (clusters['💎 Churn Iminente'] || 0),
+        'Risco: Queda em Receita': clusters['🚨 Risco: Queda Receita'] || 0,
+        'Risco: Queda em Engajamento': clusters['🚨 Risco: Queda Engajamento'] || 0
+    };
+    
+    const grupoInfo = {
+        'Elite': { icone: '⭐', cor: '#fbbf24' },
+        'Muito bom': { icone: '📈', cor: '#34d399' },
+        'Estável': { icone: '📊', cor: '#60a5fa' },
+        'Baixo': { icone: '⚠️', cor: '#fb923c' },
+        'Risco: Queda em Receita': { icone: '🚨', cor: '#ef4444' },
+        'Risco: Queda em Engajamento': { icone: '📉', cor: '#f59e0b' }
     };
     
     let html = '';
-    for (const [nome, qtd] of Object.entries(clusters)) {
-        const info = clusterNomes[nome] || { icone: '●', cor: '#94a3b8' };
+    for (const [nome, qtd] of Object.entries(grupos)) {
+        const info = grupoInfo[nome];
         const pct = total > 0 ? (qtd / total * 100).toFixed(1) : 0;
         
         html += `
@@ -1618,22 +1622,27 @@ function atualizarGraficoClusters(ultimoDia) {
         execClustersChart.destroy();
     }
     
-    const clusters = ultimoDia.clusters;
-    const total = ultimoDia.total_jogadores;
+    const clusters = ultimoDia.clusters || {};
+    const total = ultimoDia.total_jogadores || 0;
+    
+    console.log('atualizarGraficoClusters - clusters:', clusters);
+    
+    // Agrupa nos 6 grupos do gráfico
+    const dadosAgrupados = [
+        (clusters['⭐ Elite'] || 0) + (clusters['💰 Oportunidade VIP'] || 0), // Elite
+        (clusters['🏆 VIP Ativo'] || 0) + (clusters['📈 Bom'] || 0) + (clusters['💰 Oportunidade'] || 0) + (clusters['🎯 Potencial'] || 0), // VIP Ativo/Bom
+        clusters['📊 Estável'] || 0, // Estável
+        (clusters['⚠️ Atenção'] || 0) + (clusters['🚨 Risco Alto'] || 0) + (clusters['💎 Churn Iminente'] || 0), // Atenção
+        clusters['🚨 Risco: Queda Receita'] || 0, // Risco Receita
+        clusters['🚨 Risco: Queda Engajamento'] || 0 // Risco Engajamento
+    ];
     
     execClustersChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['⭐ Elite', '🏆 VIP Ativo', '📊 Estável', '⚠️ Atenção', '🚨 Risco Receita', '🚨 Risco Engajamento'],
+            labels: ['⭐ Elite', '🏆 VIP Ativo/Bom', '📊 Estável', '⚠️ Atenção/Risco', '🚨 Risco Receita', '🚨 Risco Engajamento'],
             datasets: [{
-                data: [
-                    clusters['elite'] || 0,
-                    clusters['vip_ativo'] || 0,
-                    clusters['estavel'] || 0,
-                    clusters['atencao'] || 0,
-                    clusters['risco_receita'] || 0,
-                    clusters['risco_engajamento'] || 0
-                ],
+                data: dadosAgrupados,
                 backgroundColor: [
                     '#fbbf24',
                     '#34d399',
