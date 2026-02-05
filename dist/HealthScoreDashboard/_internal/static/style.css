@@ -1,4 +1,6 @@
-/* Health Score Dashboard - Styles */
+/* =====================================================
+   Health Score Dashboard v2.3 - Estilos Otimizados
+   ===================================================== */
 
 :root {
     --primary: #6366f1;
@@ -158,65 +160,158 @@ input[type="file"] {
     box-shadow: var(--shadow);
 }
 
-/* Empty State */
+/* Empty State - Tela Inicial Otimizada */
 .empty-state {
     text-align: center;
-    padding: 80px 20px;
+    padding: 60px 20px;
 }
 
 .empty-state-content i {
-    font-size: 64px;
+    font-size: 72px;
     color: var(--primary);
     margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 .empty-state-content h2 {
-    font-size: 28px;
-    margin-bottom: 10px;
+    font-size: 32px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.empty-state-content p {
+.empty-state-content .subtitle {
+    font-size: 16px;
     color: var(--text-secondary);
     margin-bottom: 30px;
-    max-width: 500px;
+}
+
+/* Guia Rápido */
+.guia-rapido {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--border-radius);
+    padding: 25px;
+    margin-bottom: 30px;
+    max-width: 600px;
     margin-left: auto;
     margin-right: auto;
 }
 
-.empty-actions {
-    margin-bottom: 30px;
+.guia-rapido h3 {
+    font-size: 16px;
+    margin-bottom: 20px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
-.file-format {
-    background: var(--bg-card);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    display: inline-block;
+.guia-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.guia-step {
+    display: flex;
+    align-items: center;
+    gap: 15px;
     text-align: left;
 }
 
-.file-format h4 {
-    margin-bottom: 10px;
-    color: var(--primary);
+.step-num {
+    width: 32px;
+    height: 32px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
 }
 
-.file-format ul {
-    list-style: none;
+.step-text {
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 14px;
 }
 
-.file-format li {
-    margin: 5px 0;
-    padding-left: 15px;
-    position: relative;
+.empty-actions {
+    margin-bottom: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
-.file-format li::before {
-    content: "•";
+/* Formato de Arquivo - Tela Inicial */
+.file-format {
+    background: var(--bg-card);
+    padding: 25px;
+    border-radius: var(--border-radius);
+    display: inline-block;
+    text-align: left;
+    max-width: 700px;
+}
+
+.file-format h4 {
+    margin-bottom: 15px;
     color: var(--primary);
-    position: absolute;
-    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-format p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.colunas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.coluna-item {
+    background: var(--bg-secondary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.coluna-item code {
+    color: var(--primary);
+    font-weight: 600;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.file-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.file-hint i {
+    color: var(--info);
 }
 
 /* Dashboard */

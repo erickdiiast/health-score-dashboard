@@ -35,20 +35,55 @@
             <!-- Estado Vazio -->
             <div id="empty-state" class="empty-state">
                 <div class="empty-state-content">
-                    <i class="fas fa-chart-line"></i>
-                    <h2>Bem-vindo ao Health Score Dashboard</h2>
-                    <p>Faça upload de um CSV com dados dos jogadores ou use os dados de exemplo para começar.</p>
+                    <i class="fas fa-heartbeat"></i>
+                    <h2>Health Score Dashboard</h2>
+                    <p class="subtitle">Análise completa de saúde e engajamento dos jogadores</p>
+                    
+                    <!-- Guia Rápido -->
+                    <div class="guia-rapido">
+                        <h3><i class="fas fa-lightbulb"></i> Como funciona?</h3>
+                        <div class="guia-steps">
+                            <div class="guia-step">
+                                <span class="step-num">1</span>
+                                <span class="step-text">Faça upload da planilha com dados dos jogadores</span>
+                            </div>
+                            <div class="guia-step">
+                                <span class="step-num">2</span>
+                                <span class="step-text">O sistema calcula automaticamente o Health Score de cada jogador</span>
+                            </div>
+                            <div class="guia-step">
+                                <span class="step-num">3</span>
+                                <span class="step-text">Visualize segmentações, riscos e oportunidades em tempo real</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="empty-actions">
-                        <button class="btn btn-primary btn-lg" onclick="loadSampleData()">
+                        <label class="btn btn-primary btn-lg" for="file-upload-intro">
+                            <i class="fas fa-upload"></i> Carregar Planilha
+                            <input type="file" id="file-upload-intro" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(event)" style="display: none;">
+                        </label>
+                        <button class="btn btn-secondary btn-lg" onclick="loadSampleData()">
                             <i class="fas fa-play"></i> Ver Demonstração
                         </button>
                     </div>
+                    
                     <div class="file-format">
-                        <h4>Formatos aceitos: CSV ou Excel (.xlsx)</h4>
-                        <p style="margin-top: 10px; color: #94a3b8; font-size: 13px;">
-                            <strong>Colunas CRM suportadas:</strong><br>
-                            pid, nivel_vip (1=Ametista, 2=Topázio, 3=Esmeralda, 4=Opala, 5=Berilo), lastLogin, qtd_logins_3d, qtd_compras_7d, qtd_torneios_3d, qtd_maratonas_3d, qtd_missoes_3d, qtd_promos_3d, ultima_compra
-                        </p>
+                        <h4><i class="fas fa-file-alt"></i> Formato do Arquivo</h4>
+                        <p>Arquivos CSV ou Excel (.xlsx) com as seguintes colunas:</p>
+                        <div class="colunas-grid">
+                            <div class="coluna-item"><code>pid</code> - ID do jogador</div>
+                            <div class="coluna-item"><code>nivel_vip</code> - 1 a 5 (Ametista a Berilo)</div>
+                            <div class="coluna-item"><code>lastLogin</code> - Último login</div>
+                            <div class="coluna-item"><code>qtd_logins_3d</code> - Logins (3 dias)</div>
+                            <div class="coluna-item"><code>qtd_compras_7d</code> - Compras (7 dias)</div>
+                            <div class="coluna-item"><code>qtd_torneios_3d</code> - Torneios (3 dias)</div>
+                            <div class="coluna-item"><code>qtd_maratonas_3d</code> - Maratonas (3 dias)</div>
+                            <div class="coluna-item"><code>qtd_missoes_3d</code> - Missões (3 dias)</div>
+                            <div class="coluna-item"><code>qtd_promos_3d</code> - Promoções (3 dias)</div>
+                            <div class="coluna-item"><code>ultima_compra</code> - Data última compra</div>
+                        </div>
+                        <p class="file-hint"><i class="fas fa-info-circle"></i> Exporte os dados diretamente do CRM no formato padrão.</p>
                     </div>
                 </div>
             </div>

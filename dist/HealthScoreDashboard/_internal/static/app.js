@@ -26,7 +26,6 @@ Chart.defaults.font.family = 'Inter, sans-serif';
  * Gerenciamento de Regiões
  */
 function showRegion(regiao) {
-    console.log('Trocando região para:', regiao);
     regiaoAtual = regiao;
     
     // Atualiza botões
@@ -37,11 +36,8 @@ function showRegion(regiao) {
     
     // Filtra dados e atualiza dashboard
     if (cachedDataCompleto) {
-        console.log('Filtrando', cachedDataCompleto.length, 'jogadores');
         const dadosFiltrados = filtrarDados(cachedDataCompleto, regiao, vipAtual);
-        console.log('Filtrado para', dadosFiltrados.length, 'jogadores (região:', regiao, ', VIP:', vipAtual, ')');
         const resumoFiltrado = gerarResumoFiltrado(dadosFiltrados, cachedResumo, regiao);
-        console.log('Resumo calculado:', resumoFiltrado.total_jogadores, 'jogadores');
         
         // Atualiza dashboard com dados filtrados
         updateDashboardWithData(resumoFiltrado, dadosFiltrados);
@@ -51,8 +47,6 @@ function showRegion(regiao) {
         if (activeTab && (activeTab.id === 'tab-vip' || activeTab.id === 'tab-benchmarks')) {
             renderTabContent(activeTab.id, resumoFiltrado);
         }
-    } else {
-        console.log('Sem dados em cache para filtrar');
     }
 }
 
@@ -68,7 +62,6 @@ function filtrarPorRegiao(dados, regiao) {
  * Gerenciamento de Nível VIP
  */
 function showVIP(nivel) {
-    console.log('Trocando nível VIP para:', nivel);
     vipAtual = nivel;
     
     // Atualiza botões
@@ -80,7 +73,6 @@ function showVIP(nivel) {
     // Filtra dados e atualiza dashboard
     if (cachedDataCompleto) {
         const dadosFiltrados = filtrarDados(cachedDataCompleto, regiaoAtual, vipAtual);
-        console.log('Filtrado para', dadosFiltrados.length, 'jogadores (região:', regiaoAtual, ', VIP:', vipAtual, ')');
         const resumoFiltrado = gerarResumoFiltrado(dadosFiltrados, cachedResumo, regiaoAtual);
         
         // Atualiza dashboard com dados filtrados
@@ -420,17 +412,9 @@ function showLoading() {
  * Mostra dashboard
  */
 function showDashboard() {
-    console.log('>>> showDashboard() chamado');
-    
     const emptyState = document.getElementById('empty-state');
     const loading = document.getElementById('loading');
     const dashboard = document.getElementById('dashboard');
-    
-    console.log('Elementos encontrados:', {
-        emptyState: !!emptyState,
-        loading: !!loading,
-        dashboard: !!dashboard
-    });
     
     hideElement('empty-state');
     hideElement('loading');
@@ -439,18 +423,12 @@ function showDashboard() {
     dashboard.classList.remove('hidden');
     dashboard.classList.add('active');
     
-    console.log('Dashboard classes:', dashboard?.className);
-    
     // Ativa a primeira aba (overview) se nenhuma estiver ativa
     const activeTab = document.querySelector('.tab-content.active');
-    console.log('Aba ativa encontrada:', activeTab?.id);
     
     if (!activeTab) {
-        console.log('Ativando tab-overview...');
         showTab('tab-overview');
     }
-    
-    console.log('<<< showDashboard() concluído');
 }
 
 /**
@@ -465,7 +443,6 @@ function formatNumber(num) {
  * Atualiza KPI cards
  */
 function updateKPIs(resumo) {
-    console.log('updateKPIs - resumo:', resumo);
     document.getElementById('total-jogadores').textContent = resumo.total_jogadores;
     document.getElementById('percentual-ativos').textContent = formatNumber(resumo.percentual_ativos) + '%';
     document.getElementById('pontuacao-geral').textContent = formatNumber(resumo.media_pontuacao_geral);
@@ -476,7 +453,6 @@ function updateKPIs(resumo) {
  * Atualiza cards de scores
  */
 function updateScores(resumo) {
-    console.log('updateScores - resumo:', resumo);
     // Atualiza valores (apenas Engajamento e Compras)
     document.getElementById('score-engajamento').textContent = formatNumber(resumo.media_saude_engajamento);
     document.getElementById('score-compras').textContent = formatNumber(resumo.media_saude_compras);
@@ -490,7 +466,6 @@ function updateScores(resumo) {
  * Atualiza distribuição de categorias
  */
 function updateCategorias(distribuicao) {
-    console.log('updateCategorias - distribuicao:', distribuicao);
     // Mapeia TODAS as categorias novas para os 6 grupos do HTML
     const valores = {
         'elite': (distribuicao.elite || 0) + (distribuicao.oportunidade_vip || 0), // Elite + Oportunidade VIP
@@ -503,7 +478,6 @@ function updateCategorias(distribuicao) {
     
     // Calcula total para verificar
     const total = Object.values(valores).reduce((a, b) => a + b, 0);
-    console.log('updateCategorias - valores calculados:', valores, 'Total:', total.toFixed(2) + '%');
     
     document.getElementById('cat-elite').textContent = valores.elite.toFixed(2) + '%';
     document.getElementById('cat-muito-bom').textContent = valores.muito_bom.toFixed(2) + '%';
@@ -530,7 +504,6 @@ function renderCategoriaChart(distribuicao) {
     
     // Verificação de segurança para distribuição
     if (!distribuicao) {
-        console.warn('distribuicao é undefined/null em renderCategoriaChart');
         distribuicao = {};
     }
     
@@ -609,7 +582,6 @@ function renderScoresChart(resumo) {
     
     // Verificação de segurança para resumo
     if (!resumo) {
-        console.warn('resumo é undefined/null em renderScoresChart');
         resumo = {};
     }
     
@@ -855,14 +827,8 @@ function updateClusterTable(clusterId, jogadores) {
  */
 function updateClustersSection(dados) {
     if (!dados) {
-        console.log('updateClustersSection: dados vazios');
         return;
     }
-    
-    // Debug: mostra categorias únicas
-    const categoriasUnicas = [...new Set(dados.map(j => j.categoria))];
-    console.log('Categorias encontradas:', categoriasUnicas);
-    console.log('Total jogadores:', dados.length);
     
     // Filtra top 50 de cada categoria (mapeando para IDs existentes no HTML)
     const elite = dados.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
@@ -878,8 +844,6 @@ function updateClustersSection(dados) {
     const riscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     const riscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     
-    console.log('Contagem - Elite:', elite.length, 'VIP Ativo:', vipAtivo.length, 'Estável:', estavel.length, 'Atenção:', atencao.length);
-    
     // Atualiza tabelas existentes
     updateClusterTable('elite', elite);
     updateClusterTable('muito-bom', vipAtivo);  // VIP Ativo vai para Muito Bom
@@ -893,10 +857,6 @@ function updateClustersSection(dados) {
  * Atualiza todo o dashboard com os dados
  */
 function updateDashboard(resumo, dadosCompletos) {
-    console.log('>>> updateDashboard() chamado');
-    console.log('resumo:', resumo);
-    console.log('dadosCompletos:', dadosCompletos ? dadosCompletos.length + ' registros' : 'null/undefined');
-    
     // Guarda em cache
     cachedResumo = resumo;
     if (dadosCompletos) {
@@ -950,29 +910,21 @@ function updateDashboard(resumo, dadosCompletos) {
         
         // Atualiza seção de clusters
         updateClustersSection(dadosParaMostrar);
-    } else {
-        console.warn('dadosParaMostrar não é um array válido:', dadosParaMostrar);
     }
     
     if (resumoParaMostrar.analise_vip) {
         updateVIPSection(resumoParaMostrar.analise_vip);
     }
-    
-    console.log('<<< updateDashboard() concluído');
 }
 
 /**
  * Handle file upload
  */
 async function handleFileUpload(event) {
-    console.log('Upload iniciado...');
     const file = event.target.files[0];
     if (!file) {
-        console.log('Nenhum arquivo selecionado');
         return;
     }
-    
-    console.log('Arquivo:', file.name);
     
     const validExtensions = ['.csv', '.xlsx', '.xls'];
     const isValid = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
@@ -987,13 +939,10 @@ async function handleFileUpload(event) {
     formData.append('file', file);
     
     try {
-        console.log('Enviando para /api/upload...');
         const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData
         });
-        
-        console.log('Resposta recebida:', response.status);
         
         if (!response.ok) {
             const error = await response.json();
@@ -1001,10 +950,8 @@ async function handleFileUpload(event) {
         }
         
         const data = await response.json();
-        console.log('Dados recebidos:', data);
         
         if (data.success) {
-            console.log('Atualizando dashboard...');
             // Busca dados completos
             try {
                 const dadosResponse = await fetch('/api/dados');
@@ -1012,22 +959,18 @@ async function handleFileUpload(event) {
                     throw new Error('Falha ao buscar dados completos');
                 }
                 const dadosData = await dadosResponse.json();
-                console.log('Dados completos recebidos:', dadosData.dados_completos ? dadosData.dados_completos.length : 0, 'registros');
                 
                 updateDashboard(data.resumo, dadosData.dados_completos);
             } catch (dadosError) {
-                console.warn('Erro ao buscar dados completos, usando resumo apenas:', dadosError);
                 // Mesmo sem dados completos, mostra o dashboard com o resumo
                 updateDashboard(data.resumo, []);
             }
             showDashboard();
-            console.log('Dashboard atualizado!');
         } else {
             throw new Error(data.message || 'Erro desconhecido');
         }
         
     } catch (error) {
-        console.error('Erro:', error);
         alert('Erro: ' + error.message);
         hideElement('loading');
         showElement('empty-state');
@@ -1060,7 +1003,6 @@ async function loadSampleData() {
         }
         
     } catch (error) {
-        console.error('Erro:', error);
         alert('Erro: ' + error.message);
         hideElement('loading');
         showElement('empty-state');
@@ -1329,7 +1271,7 @@ function renderBenchmarksSection(resumo) {
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Health Score Dashboard - Inicializado');
+    console.log('Health Score Dashboard v2.3 - Inicializado');
     
     // Adiciona listener para teclas de navegação
     document.addEventListener('keydown', function(e) {
@@ -1388,9 +1330,6 @@ async function salvarSnapshot() {
             dataSnapshot = `${ano}-${mes}-${dia}`;
         }
         
-        console.log('salvarSnapshot - data selecionada:', dataSnapshot);
-        console.log('salvarSnapshot - timezone do navegador:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-        
         const response = await fetch('/api/historico/salvar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1404,8 +1343,6 @@ async function salvarSnapshot() {
         });
         
         const data = await response.json();
-        console.log('salvarSnapshot - resposta do servidor:', data);
-        console.log('salvarSnapshot - data retornada pelo servidor:', data.data);
         
         if (data.success) {
             showToast('Dados salvos! Data: ' + data.data, 'success');
@@ -1415,7 +1352,6 @@ async function salvarSnapshot() {
             showToast('Erro ao salvar: ' + data.message, 'error');
         }
     } catch (error) {
-        console.error('Erro ao salvar snapshot:', error);
         showToast('Erro ao salvar dados', 'error');
     }
 }
@@ -1442,7 +1378,6 @@ async function deletarSnapshot(snapshotId) {
             showToast('Erro ao excluir: ' + data.message, 'error');
         }
     } catch (error) {
-        console.error('Erro ao deletar snapshot:', error);
         showToast('Erro ao excluir registro', 'error');
     }
 }
@@ -1475,7 +1410,6 @@ async function carregarHistorico() {
             }
         }
     } catch (error) {
-        console.error('Erro ao carregar histórico:', error);
     }
 }
 
@@ -1527,9 +1461,6 @@ function atualizarVariacao(elementId, valor, decimais) {
 function atualizarTabelaClusters(ultimoDia) {
     const tbody = document.getElementById('exec-clusters-body');
     if (!tbody) return;
-    
-    console.log('atualizarTabelaClusters - ultimoDia:', ultimoDia);
-    console.log('atualizarTabelaClusters - clusters:', ultimoDia?.clusters);
     
     const clusters = ultimoDia.clusters || {};
     const total = ultimoDia.total_jogadores || 0;
@@ -1691,8 +1622,6 @@ function atualizarGraficoClusters(ultimoDia) {
     
     const clusters = ultimoDia.clusters || {};
     const total = ultimoDia.total_jogadores || 0;
-    
-    console.log('atualizarGraficoClusters - clusters:', clusters);
     
     // Dados do histórico já vêm agrupados em 6 categorias
     const dadosAgrupados = [
