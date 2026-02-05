@@ -454,6 +454,8 @@ function updateScores(resumo) {
  * Atualiza distribuição de categorias
  */
 function updateCategorias(distribuicao) {
+    console.log('updateCategorias - distribuicao recebida:', distribuicao);
+    
     // Mapeia novas chaves para os IDs do HTML (mantendo compatibilidade com layout antigo)
     const valores = {
         'elite': distribuicao.elite || 0,
@@ -463,6 +465,8 @@ function updateCategorias(distribuicao) {
         'risco_receita': distribuicao.risco_receita || 0,
         'risco_engajamento': distribuicao.risco_engajamento || 0
     };
+    
+    console.log('updateCategorias - valores calculados:', valores);
     
     document.getElementById('cat-elite').textContent = valores.elite.toFixed(2) + '%';
     document.getElementById('cat-muito-bom').textContent = valores.muito_bom.toFixed(2) + '%';
@@ -1304,6 +1308,9 @@ async function salvarSnapshot() {
         const dataInput = document.getElementById('snapshot-data');
         const dataSnapshot = dataInput.value; // Data no formato YYYY-MM-DD
         
+        console.log('salvarSnapshot - dataInput.value:', dataSnapshot);
+        console.log('salvarSnapshot - dataInput.value tipo:', typeof dataSnapshot);
+        
         const response = await fetch('/api/historico/salvar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1317,6 +1324,7 @@ async function salvarSnapshot() {
         });
         
         const data = await response.json();
+        console.log('salvarSnapshot - resposta do servidor:', data);
         
         if (data.success) {
             showToast('Dados salvos com sucesso! Data: ' + data.data, 'success');
