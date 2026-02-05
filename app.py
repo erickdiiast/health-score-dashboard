@@ -901,12 +901,18 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
         "media_saude_compras": round(df['score_compras'].mean(), 2),
         "media_pontuacao_geral": round(df['score_geral'].mean(), 2),
         "distribuicao_categorias": {
-            "elite": round((df['categoria'] == 'Elite').sum() / total * 100, 2) if total > 0 else 0,
-            "muito_bom": round((df['categoria'] == 'Muito bom').sum() / total * 100, 2) if total > 0 else 0,
-            "estavel": round((df['categoria'] == 'Estável').sum() / total * 100, 2) if total > 0 else 0,
-            "baixo": round((df['categoria'] == 'Baixo').sum() / total * 100, 2) if total > 0 else 0,
-            "risco_receita": round((df['categoria'] == 'Risco: Queda em Receita').sum() / total * 100, 2) if total > 0 else 0,
-            "risco_engajamento": round((df['categoria'] == 'Risco: Queda em Engajamento').sum() / total * 100, 2) if total > 0 else 0,
+            "elite": round((df['categoria'] == '⭐ Elite').sum() / total * 100, 2) if total > 0 else 0,
+            "vip_ativo": round((df['categoria'] == '🏆 VIP Ativo').sum() / total * 100, 2) if total > 0 else 0,
+            "bom": round((df['categoria'] == '📈 Bom').sum() / total * 100, 2) if total > 0 else 0,
+            "estavel": round((df['categoria'] == '📊 Estável').sum() / total * 100, 2) if total > 0 else 0,
+            "atencao": round((df['categoria'] == '⚠️ Atenção').sum() / total * 100, 2) if total > 0 else 0,
+            "risco_alto": round((df['categoria'] == '🚨 Risco Alto').sum() / total * 100, 2) if total > 0 else 0,
+            "risco_receita": round((df['categoria'] == '🚨 Risco: Queda Receita').sum() / total * 100, 2) if total > 0 else 0,
+            "risco_engajamento": round((df['categoria'] == '🚨 Risco: Queda Engajamento').sum() / total * 100, 2) if total > 0 else 0,
+            "churn_iminente": round((df['categoria'] == '💎 Churn Iminente').sum() / total * 100, 2) if total > 0 else 0,
+            "oportunidade_vip": round((df['categoria'] == '💰 Oportunidade VIP').sum() / total * 100, 2) if total > 0 else 0,
+            "oportunidade": round((df['categoria'] == '💰 Oportunidade').sum() / total * 100, 2) if total > 0 else 0,
+            "potencial": round((df['categoria'] == '🎯 Potencial').sum() / total * 100, 2) if total > 0 else 0,
         },
         "contagem_por_categoria": contagem_categorias.to_dict(),
         "parametros_calculados": params,
@@ -968,12 +974,18 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                     "score_compras_medio": round(df_regiao['score_compras'].mean(), 2),
                     "percentual_ativos": round((df_regiao['ativo'].sum() / len(df_regiao) * 100), 2),
                     "distribuicao_categorias": {
-                        "elite": round((df_regiao['categoria'] == 'Elite').sum() / len(df_regiao) * 100, 2),
-                        "muito_bom": round((df_regiao['categoria'] == 'Muito bom').sum() / len(df_regiao) * 100, 2),
-                        "estavel": round((df_regiao['categoria'] == 'Estável').sum() / len(df_regiao) * 100, 2),
-                        "baixo": round((df_regiao['categoria'] == 'Baixo').sum() / len(df_regiao) * 100, 2),
-                        "risco_receita": round((df_regiao['categoria'] == 'Risco: Queda em Receita').sum() / len(df_regiao) * 100, 2),
-                "risco_engajamento": round((df_regiao['categoria'] == 'Risco: Queda em Engajamento').sum() / len(df_regiao) * 100, 2),
+                        "elite": round((df_regiao['categoria'] == '⭐ Elite').sum() / len(df_regiao) * 100, 2),
+                        "vip_ativo": round((df_regiao['categoria'] == '🏆 VIP Ativo').sum() / len(df_regiao) * 100, 2),
+                        "bom": round((df_regiao['categoria'] == '📈 Bom').sum() / len(df_regiao) * 100, 2),
+                        "estavel": round((df_regiao['categoria'] == '📊 Estável').sum() / len(df_regiao) * 100, 2),
+                        "atencao": round((df_regiao['categoria'] == '⚠️ Atenção').sum() / len(df_regiao) * 100, 2),
+                        "risco_alto": round((df_regiao['categoria'] == '🚨 Risco Alto').sum() / len(df_regiao) * 100, 2),
+                        "risco_receita": round((df_regiao['categoria'] == '🚨 Risco: Queda Receita').sum() / len(df_regiao) * 100, 2),
+                        "risco_engajamento": round((df_regiao['categoria'] == '🚨 Risco: Queda Engajamento').sum() / len(df_regiao) * 100, 2),
+                        "churn_iminente": round((df_regiao['categoria'] == '💎 Churn Iminente').sum() / len(df_regiao) * 100, 2),
+                        "oportunidade_vip": round((df_regiao['categoria'] == '💰 Oportunidade VIP').sum() / len(df_regiao) * 100, 2),
+                        "oportunidade": round((df_regiao['categoria'] == '💰 Oportunidade').sum() / len(df_regiao) * 100, 2),
+                        "potencial": round((df_regiao['categoria'] == '🎯 Potencial').sum() / len(df_regiao) * 100, 2),
                     },
                     "top_3": df_regiao.nlargest(3, 'score_geral')[[id_col, 'score_geral', 'categoria', 'regiao']].to_dict('records')
                 }
@@ -1002,12 +1014,18 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                 "score_compras_medio": round(df_vip['score_compras'].mean(), 2),
                 "percentual_ativos": round((df_vip['ativo'].sum() / len(df_vip) * 100), 2) if len(df_vip) > 0 else 0,
                 "distribuicao_categorias": {
-                    "elite": round((df_vip['categoria'] == 'Elite').sum() / len(df_vip) * 100, 2),
-                    "muito_bom": round((df_vip['categoria'] == 'Muito bom').sum() / len(df_vip) * 100, 2),
-                    "estavel": round((df_vip['categoria'] == 'Estável').sum() / len(df_vip) * 100, 2),
-                    "baixo": round((df_vip['categoria'] == 'Baixo').sum() / len(df_vip) * 100, 2),
-                    "risco_receita": round((df_vip['categoria'] == 'Risco: Queda em Receita').sum() / len(df_vip) * 100, 2),
-                "risco_engajamento": round((df_vip['categoria'] == 'Risco: Queda em Engajamento').sum() / len(df_vip) * 100, 2),
+                    "elite": round((df_vip['categoria'] == '⭐ Elite').sum() / len(df_vip) * 100, 2),
+                    "vip_ativo": round((df_vip['categoria'] == '🏆 VIP Ativo').sum() / len(df_vip) * 100, 2),
+                    "bom": round((df_vip['categoria'] == '📈 Bom').sum() / len(df_vip) * 100, 2),
+                    "estavel": round((df_vip['categoria'] == '📊 Estável').sum() / len(df_vip) * 100, 2),
+                    "atencao": round((df_vip['categoria'] == '⚠️ Atenção').sum() / len(df_vip) * 100, 2),
+                    "risco_alto": round((df_vip['categoria'] == '🚨 Risco Alto').sum() / len(df_vip) * 100, 2),
+                    "risco_receita": round((df_vip['categoria'] == '🚨 Risco: Queda Receita').sum() / len(df_vip) * 100, 2),
+                    "risco_engajamento": round((df_vip['categoria'] == '🚨 Risco: Queda Engajamento').sum() / len(df_vip) * 100, 2),
+                    "churn_iminente": round((df_vip['categoria'] == '💎 Churn Iminente').sum() / len(df_vip) * 100, 2),
+                    "oportunidade_vip": round((df_vip['categoria'] == '💰 Oportunidade VIP').sum() / len(df_vip) * 100, 2),
+                    "oportunidade": round((df_vip['categoria'] == '💰 Oportunidade').sum() / len(df_vip) * 100, 2),
+                    "potencial": round((df_vip['categoria'] == '🎯 Potencial').sum() / len(df_vip) * 100, 2),
                 },
                 "top_3": df_vip.nlargest(3, 'score_geral')[[id_col, 'score_geral', 'categoria']].to_dict('records')
             }
@@ -1220,12 +1238,18 @@ async def export_excel():
             'Média Saúde Engajamento': resumo['media_saude_engajamento'],
             'Média Saúde Compras': resumo['media_saude_compras'],
             'Média Pontuação Geral': resumo['media_pontuacao_geral'],
-            '% Elite': resumo['distribuicao_categorias']['elite'],
-            '% Muito Bom': resumo['distribuicao_categorias']['muito_bom'],
-            '% Estável': resumo['distribuicao_categorias']['estavel'],
-            '% Baixo': resumo['distribuicao_categorias']['baixo'],
-            '% Risco Queda Receita': resumo['distribuicao_categorias']['risco_receita'],
-            '% Risco Queda Engajamento': resumo['distribuicao_categorias']['risco_engajamento'],
+            '% Elite': resumo['distribuicao_categorias'].get('elite', 0),
+            '% VIP Ativo': resumo['distribuicao_categorias'].get('vip_ativo', 0),
+            '% Bom': resumo['distribuicao_categorias'].get('bom', 0),
+            '% Estável': resumo['distribuicao_categorias'].get('estavel', 0),
+            '% Atenção': resumo['distribuicao_categorias'].get('atencao', 0),
+            '% Risco Alto': resumo['distribuicao_categorias'].get('risco_alto', 0),
+            '% Risco Queda Receita': resumo['distribuicao_categorias'].get('risco_receita', 0),
+            '% Risco Queda Engajamento': resumo['distribuicao_categorias'].get('risco_engajamento', 0),
+            '% Churn Iminente': resumo['distribuicao_categorias'].get('churn_iminente', 0),
+            '% Oportunidade VIP': resumo['distribuicao_categorias'].get('oportunidade_vip', 0),
+            '% Oportunidade': resumo['distribuicao_categorias'].get('oportunidade', 0),
+            '% Potencial': resumo['distribuicao_categorias'].get('potencial', 0),
         }])
         resumo_df.to_excel(writer, sheet_name='Resumo', index=False)
         
@@ -1275,12 +1299,18 @@ async def export_excel():
                     'Score Engajamento Médio': vip_stats['score_engajamento_medio'],
                     'Score Compras Médio': vip_stats['score_compras_medio'],
                     '% Ativos': vip_stats['percentual_ativos'],
-                    '% Elite': vip_stats['distribuicao_categorias']['elite'],
-                    '% Muito Bom': vip_stats['distribuicao_categorias']['muito_bom'],
-                    '% Estável': vip_stats['distribuicao_categorias']['estavel'],
-                    '% Baixo': vip_stats['distribuicao_categorias']['baixo'],
-                    '% Risco Queda Receita': vip_stats['distribuicao_categorias']['risco_receita'],
-                    '% Risco Queda Engajamento': vip_stats['distribuicao_categorias']['risco_engajamento'],
+                    '% Elite': vip_stats['distribuicao_categorias'].get('elite', 0),
+                    '% VIP Ativo': vip_stats['distribuicao_categorias'].get('vip_ativo', 0),
+                    '% Bom': vip_stats['distribuicao_categorias'].get('bom', 0),
+                    '% Estável': vip_stats['distribuicao_categorias'].get('estavel', 0),
+                    '% Atenção': vip_stats['distribuicao_categorias'].get('atencao', 0),
+                    '% Risco Alto': vip_stats['distribuicao_categorias'].get('risco_alto', 0),
+                    '% Risco Queda Receita': vip_stats['distribuicao_categorias'].get('risco_receita', 0),
+                    '% Risco Queda Engajamento': vip_stats['distribuicao_categorias'].get('risco_engajamento', 0),
+                    '% Churn Iminente': vip_stats['distribuicao_categorias'].get('churn_iminente', 0),
+                    '% Oportunidade VIP': vip_stats['distribuicao_categorias'].get('oportunidade_vip', 0),
+                    '% Oportunidade': vip_stats['distribuicao_categorias'].get('oportunidade', 0),
+                    '% Potencial': vip_stats['distribuicao_categorias'].get('potencial', 0),
                 })
             vip_df = pd.DataFrame(vip_data)
             vip_df.to_excel(writer, sheet_name='Analise_VIP', index=False)
@@ -1304,15 +1334,26 @@ async def salvar_historico(request: Dict[str, Any]):
     
     resumo = cached_data['resumo']
     filtros = request.get('filtros', {})
-    data_custom = request.get('data')  # Data do arquivo, se informada
+    data_custom = request.get('data')  # Data no formato YYYY-MM-DD
     
-    snapshot_id = salvar_snapshot(resumo, filtros, data_custom)
+    # Valida e formata a data
+    if data_custom:
+        try:
+            # Parse a data sem conversão de timezone
+            data_parsed = datetime.strptime(data_custom, "%Y-%m-%d")
+            data_usar = data_parsed.strftime("%Y-%m-%d")
+        except:
+            data_usar = datetime.now().strftime("%Y-%m-%d")
+    else:
+        data_usar = datetime.now().strftime("%Y-%m-%d")
+    
+    snapshot_id = salvar_snapshot(resumo, filtros, data_usar)
     
     return {
         "success": True,
         "message": "Dados do dia salvos com sucesso",
         "snapshot_id": snapshot_id,
-        "data": data_custom or datetime.now().strftime("%Y-%m-%d")
+        "data": data_usar
     }
 
 
