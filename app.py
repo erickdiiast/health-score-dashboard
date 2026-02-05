@@ -699,6 +699,19 @@ def salvar_snapshot(resumo: Dict, filtros: Dict = None, data_custom: str = None)
     filtro_regiao = filtros.get('regiao', 'all')
     filtro_vip = filtros.get('vip', 'all')
     
+    # Agrupa as 12 categorias com emojis nas 6 categorias do banco
+    contagem = resumo.get('contagem_por_categoria', {})
+    
+    # Mapeamento: 12 novas categorias -> 6 grupos do banco
+    cluster_elite = contagem.get('⭐ Elite', 0) + contagem.get('💰 Oportunidade VIP', 0)
+    cluster_muito_bom = (contagem.get('🏆 VIP Ativo', 0) + contagem.get('📈 Bom', 0) + 
+                         contagem.get('💰 Oportunidade', 0) + contagem.get('🎯 Potencial', 0))
+    cluster_estavel = contagem.get('📊 Estável', 0)
+    cluster_baixo = (contagem.get('⚠️ Atenção', 0) + contagem.get('🚨 Risco Alto', 0) + 
+                     contagem.get('💎 Churn Iminente', 0))
+    cluster_risco_receita = contagem.get('🚨 Risco: Queda Receita', 0)
+    cluster_risco_engajamento = contagem.get('🚨 Risco: Queda Engajamento', 0)
+    
     # Insere snapshot principal
     cursor.execute('''
         INSERT INTO snapshots (
@@ -716,28 +729,27 @@ def salvar_snapshot(resumo: Dict, filtros: Dict = None, data_custom: str = None)
         resumo.get('media_saude_login', 0),
         resumo.get('media_saude_engajamento', 0),
         resumo.get('media_saude_compras', 0),
-        resumo.get('contagem_por_categoria', {}).get('Elite', 0),
-        resumo.get('contagem_por_categoria', {}).get('Muito bom', 0),
-        resumo.get('contagem_por_categoria', {}).get('Estável', 0),
-        resumo.get('contagem_por_categoria', {}).get('Baixo', 0),
-        resumo.get('contagem_por_categoria', {}).get('Risco: Queda em Receita', 0),
-        resumo.get('contagem_por_categoria', {}).get('Risco: Queda em Engajamento', 0),
+        cluster_elite,
+        cluster_muito_bom,
+        cluster_estavel,
+        cluster_baixo,
+        cluster_risco_receita,
+        cluster_risco_engajamento,
         filtro_regiao, filtro_vip
     ))
     
     snapshot_id = cursor.lastrowid
     
-    # Insere detalhes dos clusters
-    contagem = resumo.get('contagem_por_categoria', {})
+    # Insere detalhes dos clusters (já calculados acima)
     total = resumo.get('total_jogadores', 1)
     
     clusters_info = [
-        ('Elite', contagem.get('Elite', 0)),
-        ('Muito bom', contagem.get('Muito bom', 0)),
-        ('Estável', contagem.get('Estável', 0)),
-        ('Baixo', contagem.get('Baixo', 0)),
-        ('Risco: Queda em Receita', contagem.get('Risco: Queda em Receita', 0)),
-        ('Risco: Queda em Engajamento', contagem.get('Risco: Queda em Engajamento', 0)),
+        ('Elite', cluster_elite),
+        ('Muito bom', cluster_muito_bom),
+        ('Estável', cluster_estavel),
+        ('Baixo', cluster_baixo),
+        ('Risco: Queda em Receita', cluster_risco_receita),
+        ('Risco: Queda em Engajamento', cluster_risco_engajamento),
     ]
     
     for nome, qtd in clusters_info:
