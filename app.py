@@ -1357,11 +1357,15 @@ async def salvar_historico(request: Dict[str, Any]):
     filtros = request.get('filtros', {})
     data_custom = request.get('data')  # Data no formato YYYY-MM-DD
     
-    # Usa a data exatamente como recebida do frontend, sem conversões
-    if data_custom and len(data_custom) == 10:
-        data_usar = data_custom  # Já está no formato YYYY-MM-DD
+    # Usa a data exatamente como recebida do frontend
+    # O input date do HTML já retorna YYYY-MM-DD no timezone local do usuário
+    if data_custom and isinstance(data_custom, str) and len(data_custom) == 10:
+        data_usar = data_custom  # Usa diretamente: YYYY-MM-DD
     else:
         data_usar = datetime.now().strftime("%Y-%m-%d")
+    
+    print(f"[DEBUG] Data recebida do frontend: {data_custom}")
+    print(f"[DEBUG] Data usada para salvar: {data_usar}")
     
     snapshot_id = salvar_snapshot(resumo, filtros, data_usar)
     
