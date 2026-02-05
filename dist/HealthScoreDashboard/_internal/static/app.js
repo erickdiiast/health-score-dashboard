@@ -466,19 +466,19 @@ function updateScores(resumo) {
  * Atualiza distribuição de categorias
  */
 function updateCategorias(distribuicao) {
-    console.log('updateCategorias - distribuicao recebida:', distribuicao);
-    
-    // Mapeia novas chaves para os IDs do HTML (mantendo compatibilidade com layout antigo)
+    // Mapeia TODAS as categorias novas para os 6 grupos do HTML
     const valores = {
-        'elite': distribuicao.elite || 0,
-        'muito_bom': (distribuicao.vip_ativo || 0) + (distribuicao.bom || 0), // Agrupa VIP Ativo + Bom
+        'elite': (distribuicao.elite || 0) + (distribuicao.oportunidade_vip || 0), // Elite + Oportunidade VIP
+        'muito_bom': (distribuicao.vip_ativo || 0) + (distribuicao.bom || 0) + (distribuicao.oportunidade || 0) + (distribuicao.potencial || 0), // VIP Ativo + Bom + Oportunidade + Potencial
         'estavel': distribuicao.estavel || 0,
-        'baixo': (distribuicao.atencao || 0) + (distribuicao.risco_alto || 0), // Agrupa Atenção + Risco Alto
+        'baixo': (distribuicao.atencao || 0) + (distribuicao.risco_alto || 0) + (distribuicao.churn_iminente || 0), // Atenção + Risco Alto + Churn
         'risco_receita': distribuicao.risco_receita || 0,
         'risco_engajamento': distribuicao.risco_engajamento || 0
     };
     
-    console.log('updateCategorias - valores calculados:', valores);
+    // Calcula total para verificar
+    const total = Object.values(valores).reduce((a, b) => a + b, 0);
+    console.log('updateCategorias - valores calculados:', valores, 'Total:', total.toFixed(2) + '%');
     
     document.getElementById('cat-elite').textContent = valores.elite.toFixed(2) + '%';
     document.getElementById('cat-muito-bom').textContent = valores.muito_bom.toFixed(2) + '%';
@@ -1318,10 +1318,19 @@ let execEvolucaoChart = null;
 async function salvarSnapshot() {
     try {
         const dataInput = document.getElementById('snapshot-data');
-        const dataSnapshot = dataInput.value; // Data no formato YYYY-MM-DD
+        let dataSnapshot = dataInput.value; // Data no formato YYYY-MM-DD
         
-        console.log('salvarSnapshot - dataInput.value:', dataSnapshot);
-        console.log('salvarSnapshot - dataInput.value tipo:', typeof dataSnapshot);
+        // Se não houver data selecionada, usa a data atual no formato YYYY-MM-DD
+        if (!dataSnapshot) {
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            dataSnapshot = `${ano}-${mes}-${dia}`;
+        }
+        
+        console.log('salvarSnapshot - data selecionada:', dataSnapshot);
+        console.log('salvarSnapshot - timezone do navegador:', Intl.DateTimeFormat().resolvedOptions().timeZone);
         
         const response = await fetch('/api/historico/salvar', {
             method: 'POST',
@@ -1337,9 +1346,10 @@ async function salvarSnapshot() {
         
         const data = await response.json();
         console.log('salvarSnapshot - resposta do servidor:', data);
+        console.log('salvarSnapshot - data retornada pelo servidor:', data.data);
         
         if (data.success) {
-            showToast('Dados salvos com sucesso! Data: ' + data.data, 'success');
+            showToast('Dados salvos! Data: ' + data.data, 'success');
             carregarHistorico();
             dataInput.value = ''; // Limpa o campo
         } else {
