@@ -434,7 +434,10 @@ function showDashboard() {
     
     hideElement('empty-state');
     hideElement('loading');
-    showElement('dashboard');
+    
+    // Mostra o dashboard removendo hidden e adicionando active
+    dashboard.classList.remove('hidden');
+    dashboard.classList.add('active');
     
     console.log('Dashboard classes:', dashboard?.className);
     
