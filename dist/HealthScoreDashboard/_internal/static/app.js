@@ -1469,15 +1469,19 @@ function atualizarTabelaClusters(ultimoDia) {
     const tbody = document.getElementById('exec-clusters-body');
     if (!tbody) return;
     
+    console.log('atualizarTabelaClusters - ultimoDia:', ultimoDia);
+    console.log('atualizarTabelaClusters - clusters:', ultimoDia?.clusters);
+    
     const clusters = ultimoDia.clusters || {};
     const total = ultimoDia.total_jogadores || 0;
     
-    // Agrupa as novas categorias nos 6 grupos da tabela
+    // Agrupa as categorias nos 6 grupos da tabela
+    // Nota: O historico do banco tem apenas 6 categorias basicas
     const grupos = {
-        'Elite': (clusters['⭐ Elite'] || 0) + (clusters['💰 Oportunidade VIP'] || 0),
-        'Muito bom': (clusters['🏆 VIP Ativo'] || 0) + (clusters['📈 Bom'] || 0) + (clusters['💰 Oportunidade'] || 0) + (clusters['🎯 Potencial'] || 0),
+        'Elite': (clusters['⭐ Elite'] || 0),
+        'Muito bom': (clusters['🏆 VIP Ativo'] || 0),
         'Estável': clusters['📊 Estável'] || 0,
-        'Baixo': (clusters['⚠️ Atenção'] || 0) + (clusters['🚨 Risco Alto'] || 0) + (clusters['💎 Churn Iminente'] || 0),
+        'Baixo': (clusters['⚠️ Atenção'] || 0),
         'Risco: Queda em Receita': clusters['🚨 Risco: Queda Receita'] || 0,
         'Risco: Queda em Engajamento': clusters['🚨 Risco: Queda Engajamento'] || 0
     };
@@ -1522,7 +1526,7 @@ function atualizarTabelaHistorico(historico) {
     let html = '';
     for (const dia of historicoInvertido.slice(0, 10)) {
         const clusters = dia.clusters;
-        const riscos = (clusters['Risco: Queda em Receita'] || 0) + (clusters['Risco: Queda em Engajamento'] || 0);
+        const riscos = (clusters['🚨 Risco: Queda Receita'] || 0) + (clusters['🚨 Risco: Queda Engajamento'] || 0);
         
         html += `
             <tr>
@@ -1531,7 +1535,7 @@ function atualizarTabelaHistorico(historico) {
                 <td>${dia.total_jogadores.toLocaleString()}</td>
                 <td>${dia.percentual_ativos.toFixed(1)}%</td>
                 <td>${dia.media_score_geral.toFixed(1)}</td>
-                <td>${(clusters['Elite'] || 0).toLocaleString()}</td>
+                <td>${(clusters['⭐ Elite'] || 0).toLocaleString()}</td>
                 <td>${riscos.toLocaleString()}</td>
                 <td>
                     <button class="btn-delete" onclick="deletarSnapshot(${dia.id})" title="Excluir">
@@ -1556,8 +1560,12 @@ function atualizarGraficoEvolucao(historico) {
         execEvolucaoChart.destroy();
     }
     
-    const dados = historico.slice(0, 15).reverse();
-    const labels = dados.map(d => new Date(d.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+    // Dados já vêm ordenados do mais antigo para o mais novo (do backend)
+    const dados = historico.slice(-15); // Pega os últimos 15 registros
+    const labels = dados.map(d => {
+        const [ano, mes, dia] = d.data.split('-');
+        return `${dia}/${mes}`;
+    });
     
     execEvolucaoChart = new Chart(ctx, {
         type: 'line',
@@ -1627,14 +1635,14 @@ function atualizarGraficoClusters(ultimoDia) {
     
     console.log('atualizarGraficoClusters - clusters:', clusters);
     
-    // Agrupa nos 6 grupos do gráfico
+    // Dados do histórico já vêm agrupados em 6 categorias
     const dadosAgrupados = [
-        (clusters['⭐ Elite'] || 0) + (clusters['💰 Oportunidade VIP'] || 0), // Elite
-        (clusters['🏆 VIP Ativo'] || 0) + (clusters['📈 Bom'] || 0) + (clusters['💰 Oportunidade'] || 0) + (clusters['🎯 Potencial'] || 0), // VIP Ativo/Bom
-        clusters['📊 Estável'] || 0, // Estável
-        (clusters['⚠️ Atenção'] || 0) + (clusters['🚨 Risco Alto'] || 0) + (clusters['💎 Churn Iminente'] || 0), // Atenção
-        clusters['🚨 Risco: Queda Receita'] || 0, // Risco Receita
-        clusters['🚨 Risco: Queda Engajamento'] || 0 // Risco Engajamento
+        clusters['⭐ Elite'] || 0,
+        clusters['🏆 VIP Ativo'] || 0,
+        clusters['📊 Estável'] || 0,
+        clusters['⚠️ Atenção'] || 0,
+        clusters['🚨 Risco: Queda Receita'] || 0,
+        clusters['🚨 Risco: Queda Engajamento'] || 0
     ];
     
     execClustersChart = new Chart(ctx, {
