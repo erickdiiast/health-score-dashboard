@@ -128,7 +128,7 @@
                                     <i class="fas fa-users"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">Total Jogadores</span>
+                                    <span class="kpi-label">Total Jogadores <span class="info-tooltip"><span class="tooltip-text">Total de jogadores analisados no snapshot atual. Comparado com o período anterior para mostrar tendência.</span></span></span>
                                     <span class="kpi-value" id="total-jogadores">-</span>
                                 </div>
                             </div>
@@ -137,7 +137,7 @@
                                     <i class="fas fa-bolt"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">% Ativos</span>
+                                    <span class="kpi-label">% Ativos <span class="info-tooltip"><span class="tooltip-text">Porcentagem de jogadores com login nos últimos 3 dias. Métrica chave de saúde da base.</span></span></span>
                                     <span class="kpi-value" id="percentual-ativos">-</span>
                                 </div>
                             </div>
@@ -164,11 +164,13 @@
 
                     <!-- Health Scores -->
                     <section class="scores-section">
-                        <h3><i class="fas fa-heartbeat"></i> Scores de Saúde (Composição: Engajamento 30% + Compras 70%)</h3>
+                        <h3><i class="fas fa-heartbeat"></i> Scores de Saúde (Composição: Engajamento 30% + Compras 70%)
+                        <span class="info-tooltip tooltip-wide"><span class="tooltip-text">O Health Score é calculado com base em dois pilares: COMPRAS (70%) - quantidade de compras nos últimos 7 dias (40%), ticket médio (35%) e recência da última compra (25%); e ENGENHARIA (30%) - torneios, maratonas, missões, promoções e login nos últimos 3 dias.</span></span>
+                    </h3>
                         <div class="scores-grid">
                             <div class="score-card">
                                 <div class="score-header">
-                                    <span class="score-title">Engajamento (30%)</span>
+                                    <span class="score-title">Engajamento (30%) <span class="info-tooltip"><span class="tooltip-text">Média de atividades nos últimos 3 dias: torneios, maratonas, missões, promoções e logins. Considera apenas jogadores que participaram de cada atividade.</span></span></span>
                                     <i class="fas fa-gamepad"></i>
                                 </div>
                                 <div class="score-value" id="score-engajamento">-</div>
@@ -178,7 +180,7 @@
                             </div>
                             <div class="score-card">
                                 <div class="score-header">
-                                    <span class="score-title">Compras (70%)</span>
+                                    <span class="score-title">Compras (70%) <span class="info-tooltip"><span class="tooltip-text">Baseado em 3 fatores: quantidade de compras nos últimos 7 dias (40%), ticket médio (35%) e recência da última compra (25%). Benchmarks calculados dinamicamente da base.</span></span></span>
                                     <i class="fas fa-shopping-cart"></i>
                                 </div>
                                 <div class="score-value" id="score-compras">-</div>
@@ -193,11 +195,11 @@
                     <section class="charts-section">
                         <div class="chart-row">
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Categoria</h4>
+                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Categoria <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Distribuição percentual dos jogadores em 6 categorias baseadas no Health Score: Elite (≥80), Muito Bom (65-79), Estável (50-64), Baixo (35-49), Risco Receita (<35, compras < engajamento) e Risco Engajamento (<35, engajamento ≤ compras).</span></span></h4>
                                 <canvas id="categoriaChart"></canvas>
                             </div>
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-bar"></i> Composição do Health Score</h4>
+                                <h4><i class="fas fa-chart-bar"></i> Composição do Health Score <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Visão detalhada da composição do Health Score médio da base: Score de Login (baseado em último acesso e frequência), Score de Engajamento (atividades nos últimos 3 dias) e Score de Compras (quantidade, ticket e recência).</span></span></h4>
                                 <canvas id="scoresChart"></canvas>
                             </div>
                         </div>
@@ -205,11 +207,11 @@
 
                     <!-- Categorias Detalhadas -->
                     <section class="categorias-section">
-                        <h3><i class="fas fa-layer-group"></i> Distribuição de Categorias</h3>
+                        <h3><i class="fas fa-layer-group"></i> Distribuição de Categorias <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Detalhamento de cada categoria de saúde com porcentagem da base total. Cada categoria representa um segmento de jogadores com comportamentos similares de compra e engajamento.</span></span></h3>
                         <div class="categorias-grid">
                             <div class="categoria-item elite">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Elite</span>
+                                    <span class="categoria-nome">Elite <span class="info-tooltip"><span class="tooltip-text">Score ≥ 80. Jogadores com excelente performance em compras e engajamento. São a base mais valiosa e devem receber atenção especial para retenção.</span></span></span>
                                     <span class="categoria-percentual" id="cat-elite">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -219,7 +221,7 @@
                             </div>
                             <div class="categoria-item muito-bom">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Muito Bom</span>
+                                    <span class="categoria-nome">Muito Bom <span class="info-tooltip"><span class="tooltip-text">Score 65-79. Jogadores engajados com boa frequência de compras. Potencial para se tornarem Elite com incentivos adequados.</span></span></span>
                                     <span class="categoria-percentual" id="cat-muito-bom">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -229,7 +231,7 @@
                             </div>
                             <div class="categoria-item estavel">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Estável</span>
+                                    <span class="categoria-nome">Estável <span class="info-tooltip"><span class="tooltip-text">Score 50-64. Jogadores com comportamento consistente mas com espaço para crescimento. Foco em aumentar frequência de compras.</span></span></span>
                                     <span class="categoria-percentual" id="cat-estavel">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -239,7 +241,7 @@
                             </div>
                             <div class="categoria-item baixo">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Baixo</span>
+                                    <span class="categoria-nome">Baixo <span class="info-tooltip"><span class="tooltip-text">Score 35-49. Jogadores com baixa atividade. Requerem ações de reengajamento para evitar churn.</span></span></span>
                                     <span class="categoria-percentual" id="cat-baixo">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -249,7 +251,7 @@
                             </div>
                             <div class="categoria-item risco-receita">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Risco: Queda em Receita</span>
+                                    <span class="categoria-nome">Risco: Queda em Receita <span class="info-tooltip"><span class="tooltip-text">Score < 35 onde engajamento > compras. Jogadores estão ativos mas não comprando. Prioridade para campanhas de conversão.</span></span></span>
                                     <span class="categoria-percentual" id="cat-risco-receita">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -259,7 +261,7 @@
                             </div>
                             <div class="categoria-item risco-engajamento">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Risco: Queda em Engajamento</span>
+                                    <span class="categoria-nome">Risco: Queda em Engajamento <span class="info-tooltip"><span class="tooltip-text">Score < 35 onde compras ≥ engajamento. Jogadores compram pouco e têm baixo engajamento. Risco iminente de churn total.</span></span></span>
                                     <span class="categoria-percentual" id="cat-risco-engajamento">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -332,7 +334,7 @@
                                     <i class="fas fa-users"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">Total Jogadores</span>
+                                    <span class="kpi-label">Total Jogadores <span class="info-tooltip"><span class="tooltip-text">Total de jogadores analisados no snapshot atual. Comparado com o período anterior para mostrar tendência.</span></span></span>
                                     <span class="kpi-value" id="exec-total-jogadores">-</span>
                                     <span class="kpi-variacao" id="exec-var-total"></span>
                                 </div>
@@ -342,7 +344,7 @@
                                     <i class="fas fa-bolt"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">% Ativos</span>
+                                    <span class="kpi-label">% Ativos <span class="info-tooltip"><span class="tooltip-text">Porcentagem de jogadores com login nos últimos 3 dias. Métrica chave de saúde da base.</span></span></span>
                                     <span class="kpi-value" id="exec-percentual-ativos">-</span>
                                     <span class="kpi-variacao" id="exec-var-ativos"></span>
                                 </div>
@@ -352,7 +354,7 @@
                                     <i class="fas fa-star"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">Score Geral</span>
+                                    <span class="kpi-label">Score Geral <span class="info-tooltip"><span class="tooltip-text">Média do Health Score de todos os jogadores. Variação mostra se a base está melhorando ou piorando.</span></span></span>
                                     <span class="kpi-value" id="exec-score-geral">-</span>
                                     <span class="kpi-variacao" id="exec-var-score"></span>
                                 </div>
@@ -362,7 +364,7 @@
                                     <i class="fas fa-shopping-cart"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">Score Compras</span>
+                                    <span class="kpi-label">Score Compras <span class="info-tooltip"><span class="tooltip-text">Média do score de compras (70% do total). Composto por quantidade, ticket médio e recência.</span></span></span>
                                     <span class="kpi-value" id="exec-score-compras">-</span>
                                     <span class="kpi-variacao" id="exec-var-compras"></span>
                                 </div>
@@ -372,7 +374,7 @@
                                     <i class="fas fa-gamepad"></i>
                                 </div>
                                 <div class="kpi-info">
-                                    <span class="kpi-label">Score Engajamento</span>
+                                    <span class="kpi-label">Score Engajamento <span class="info-tooltip"><span class="tooltip-text">Média do score de engajamento (30% do total). Baseado em atividades nos últimos 3 dias.</span></span></span>
                                     <span class="kpi-value" id="exec-score-engajamento">-</span>
                                     <span class="kpi-variacao" id="exec-var-engajamento"></span>
                                 </div>
@@ -382,18 +384,18 @@
                         <!-- Distribuição de Clusters -->
                         <div class="chart-row">
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Cluster</h4>
+                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Cluster <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Distribuição atual dos jogadores nos 6 clusters de saúde. Permite visualizar rapidamente a composição da base e identificar concentrações de risco.</span></span></h4>
                                 <canvas id="execClustersChart"></canvas>
                             </div>
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-line"></i> Evolução dos Indicadores</h4>
+                                <h4><i class="fas fa-chart-line"></i> Evolução dos Indicadores <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Evolução temporal dos principais indicadores. Score Geral mostra a média de saúde da base e % Ativos mostra o nível de engajamento ao longo do tempo.</span></span></h4>
                                 <canvas id="execEvolucaoChart"></canvas>
                             </div>
                         </div>
 
                         <!-- Tabela de Clusters -->
                         <div class="clusters-resumo">
-                            <h4><i class="fas fa-table"></i> Resumo por Cluster</h4>
+                            <h4><i class="fas fa-table"></i> Resumo por Cluster <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Detalhamento quantitativo de cada cluster: quantidade absoluta, porcentagem da base total e tendência comparada ao período anterior.</span></span></h4>
                             <table class="data-table" id="exec-clusters-table">
                                 <thead>
                                     <tr>
@@ -410,7 +412,7 @@
 
                         <!-- Histórico -->
                         <div class="historico-section">
-                            <h4><i class="fas fa-history"></i> Histórico de Snapshots</h4>
+                            <h4><i class="fas fa-history"></i> Histórico de Snapshots <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Histórico completo de snapshots salvos. Cada linha representa uma análise diária. É possível deletar snapshots individuais se necessário.</span></span></h4>
                             <div class="table-container">
                                 <table class="data-table" id="historico-table">
                                     <thead>
@@ -436,18 +438,18 @@
                 <!-- Tab: Análise VIP -->
                 <div id="tab-vip" class="tab-content">
                     <section class="vip-section">
-                        <h3><i class="fas fa-gem"></i> Análise por Nível VIP</h3>
+                        <h3><i class="fas fa-gem"></i> Análise por Nível VIP <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Análise segmentada por nível VIP (Ametista, Topázio, Esmeralda, Opala, Berilo). Mostra comportamento, saúde e distribuição de cada segmento VIP.</span></span></h3>
                         <div class="vip-grid" id="vip-grid">
                             <!-- Cards VIP serão inseridos aqui via JS -->
                         </div>
                         
                         <div class="chart-row">
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Nível VIP</h4>
+                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Nível VIP <span class="info-tooltip"><span class="tooltip-text">Distribuição percentual da base entre os 5 níveis VIP.</span></span></h4>
                                 <canvas id="vipChart"></canvas>
                             </div>
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-bar"></i> Scores Médios por Nível VIP</h4>
+                                <h4><i class="fas fa-chart-bar"></i> Scores Médios por Nível VIP <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Comparação do Health Score médio entre níveis VIP. Permite identificar quais segmentos estão mais saudáveis.</span></span></h4>
                                 <canvas id="vipScoresChart"></canvas>
                             </div>
                         </div>
@@ -458,7 +460,7 @@
                 <div id="tab-players" class="tab-content">
                     <!-- Top Jogadores -->
                     <section class="top-section">
-                        <h3><i class="fas fa-trophy"></i> Top 10 Jogadores</h3>
+                        <h3><i class="fas fa-trophy"></i> Top 10 Jogadores <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Os 10 jogadores com maior Health Score atual. Ranking baseado na pontuação combinada de compras (70%) e engajamento (30%).</span></span></h3>
                         <div class="table-container">
                             <table class="data-table" id="top-jogadores-table">
                                 <thead>
@@ -480,7 +482,7 @@
 
                     <!-- Jogadores em Risco - Queda em Receita -->
                     <section class="risco-section">
-                        <h3><i class="fas fa-money-bill-wave"></i> Risco: Queda em Receita</h3>
+                        <h3><i class="fas fa-money-bill-wave"></i> Risco: Queda em Receita <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Jogadores com Score Geral < 35 onde o engajamento é maior que as compras. Estão ativos no app mas não convertendo em receita. Prioridade para campanhas de recuperação de receita.</span></span></h3>
                         <div class="risco-info">
                             <p>Jogadores com score de compras menor que engajamento. Prioridade para recuperação de receita.</p>
                         </div>
@@ -503,7 +505,7 @@
 
                     <!-- Jogadores em Risco - Queda em Engajamento -->
                     <section class="risco-section">
-                        <h3><i class="fas fa-chart-line"></i> Risco: Queda em Engajamento</h3>
+                        <h3><i class="fas fa-chart-line"></i> Risco: Queda em Engajamento <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Jogadores com Score Geral < 35 onde as compras são maiores ou iguais ao engajamento. Baixa atividade no app. Risco iminente de churn total.</span></span></h3>
                         <div class="risco-info">
                             <p>Jogadores com score de engajamento menor ou igual ao de compras. Foco em retenção de atividade.</p>
                         </div>
@@ -528,7 +530,7 @@
                 <!-- Tab: Clusters -->
                 <div id="tab-clusters" class="tab-content">
                     <section class="clusters-section">
-                        <h3><i class="fas fa-layer-group"></i> Top 50 Jogadores por Cluster</h3>
+                        <h3><i class="fas fa-layer-group"></i> Top 50 Jogadores por Cluster <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Lista dos 50 melhores jogadores de cada categoria. Permite identificar jogadores específicos para ações segmentadas. Clique para expandir cada cluster.</span></span></h3>
                         <p class="clusters-desc">Visualize os melhores jogadores de cada categoria de saúde. Clique para expandir.</p>
                         
                         <!-- Elite -->
@@ -536,7 +538,7 @@
                             <div class="cluster-header" onclick="toggleCluster('elite')">
                                 <div class="cluster-title">
                                     <span class="cluster-icon">🏆</span>
-                                    <span class="cluster-name">Elite</span>
+                                    <span class="cluster-name">Elite <span class="info-tooltip"><span class="tooltip-text">Top 50 jogadores com Score Geral mais alto (≥ 80). Clientes mais valiosos da base.</span></span></span>
                                     <span class="cluster-badge badge-elite">Score ≥ 80</span>
                                 </div>
                                 <div class="cluster-stats">
@@ -566,7 +568,7 @@
                             <div class="cluster-header" onclick="toggleCluster('muito-bom')">
                                 <div class="cluster-title">
                                     <span class="cluster-icon">✅</span>
-                                    <span class="cluster-name">Muito Bom</span>
+                                    <span class="cluster-name">Muito Bom <span class="info-tooltip"><span class="tooltip-text">Top 50 jogadores com Score 65-79. Alto potencial de se tornarem Elite.</span></span></span>
                                     <span class="cluster-badge badge-muito-bom">Score 65-79</span>
                                 </div>
                                 <div class="cluster-stats">
@@ -596,7 +598,7 @@
                             <div class="cluster-header" onclick="toggleCluster('estavel')">
                                 <div class="cluster-title">
                                     <span class="cluster-icon">📊</span>
-                                    <span class="cluster-name">Estável</span>
+                                    <span class="cluster-name">Estável <span class="info-tooltip"><span class="tooltip-text">Top 50 jogadores com Score 50-64. Base consistente com potencial de crescimento.</span></span></span>
                                     <span class="cluster-badge badge-estavel">Score 50-64</span>
                                 </div>
                                 <div class="cluster-stats">
@@ -626,7 +628,7 @@
                             <div class="cluster-header" onclick="toggleCluster('baixo')">
                                 <div class="cluster-title">
                                     <span class="cluster-icon">⚠️</span>
-                                    <span class="cluster-name">Baixo</span>
+                                    <span class="cluster-name">Baixo <span class="info-tooltip"><span class="tooltip-text">Top 50 jogadores com Score 35-49. Requerem atenção para evitar perda.</span></span></span>
                                     <span class="cluster-badge badge-baixo">Score 35-49</span>
                                 </div>
                                 <div class="cluster-stats">
@@ -656,7 +658,7 @@
                             <div class="cluster-header" onclick="toggleCluster('risco-receita')">
                                 <div class="cluster-title">
                                     <span class="cluster-icon">🚨</span>
-                                    <span class="cluster-name">Risco: Queda em Receita</span>
+                                    <span class="cluster-name">Risco: Queda em Receita <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Top 50 jogadores em risco de queda de receita. Engajados mas com baixa conversão. Prioridade para ofertas e incentivos de compra.</span></span></span>
                                     <span class="cluster-badge badge-risco-receita">Score < 35</span>
                                 </div>
                                 <div class="cluster-stats">
@@ -686,7 +688,7 @@
                             <div class="cluster-header" onclick="toggleCluster('risco-engajamento')">
                                 <div class="cluster-title">
                                     <span class="cluster-icon">📉</span>
-                                    <span class="cluster-name">Risco: Queda em Engajamento</span>
+                                    <span class="cluster-name">Risco: Queda em Engajamento <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Top 50 jogadores em risco de churn total. Baixo engajamento e compras. Última chance de retenção.</span></span></span>
                                     <span class="cluster-badge badge-risco-engajamento">Score < 35</span>
                                 </div>
                                 <div class="cluster-stats">
@@ -716,7 +718,7 @@
                 <!-- Tab: Benchmarks -->
                 <div id="tab-benchmarks" class="tab-content">
                     <section class="benchmarks-section">
-                        <h3><i class="fas fa-cogs"></i> Parâmetros e Benchmarks</h3>
+                        <h3><i class="fas fa-cogs"></i> Parâmetros e Benchmarks <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Parâmetros calculados dinamicamente a partir da base de jogadores. Mostra médias, medianas e desvios padrão das principais métricas. Esses valores são usados como benchmarks para calcular os scores.</span></span></h3>
                         
                         <div class="benchmarks-grid" id="benchmarks-grid">
                             <!-- Benchmarks serão inseridos aqui via JS -->
@@ -724,7 +726,7 @@
 
                         <div class="chart-row">
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-bar"></i> Médias por Métrica (3 dias)</h4>
+                                <h4><i class="fas fa-chart-bar"></i> Médias por Métrica (3 dias) <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Comparação das médias de cada métrica (torneios, maratonas, missões, promoções, logins) considerando apenas jogadores que participaram de cada atividade (média sem zeros).</span></span></h4>
                                 <canvas id="benchmarksChart"></canvas>
                             </div>
                         </div>
@@ -733,7 +735,7 @@
 
                 <!-- Export Actions -->
                 <section class="export-section">
-                    <h3><i class="fas fa-download"></i> Exportar Resultados</h3>
+                    <h3><i class="fas fa-download"></i> Exportar Resultados <span class="info-tooltip"><span class="tooltip-text">Exporte os dados completos da análise em formato CSV ou Excel para análises externas.</span></span></h3>
                     <div class="export-actions">
                         <button class="btn btn-export" onclick="exportCSV()">
                             <i class="fas fa-file-csv"></i> Exportar CSV
