@@ -756,7 +756,6 @@ input[type="file"] {
     background: var(--bg-card);
     border-radius: var(--border-radius);
     margin-bottom: 15px;
-    overflow: hidden;
 }
 
 .cluster-card.cluster-risco {
