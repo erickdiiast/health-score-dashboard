@@ -136,8 +136,8 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
             media_pontuacao_geral: analise.score_geral_medio,
             distribuicao_categorias: analise.distribuicao_categorias,
             top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
-            jogadores_risco_receita: dados.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50),
-            jogadores_risco_engajamento: dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50),
+            jogadores_risco_receita: dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50),
+            jogadores_risco_engajamento: dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50),
             regiao_atual: regiao,
             regiao_nome: analise.nome
         };
@@ -150,12 +150,12 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
     const ativos = dados.filter(j => j.ativo).length;
     
     // Calcula distribuição de categorias
-    const elite = dados.filter(j => j.categoria === 'Elite').length;
-    const muitoBom = dados.filter(j => j.categoria === 'Muito bom').length;
-    const estavel = dados.filter(j => j.categoria === 'Estável').length;
-    const baixo = dados.filter(j => j.categoria === 'Baixo').length;
-    const riscoReceita = dados.filter(j => j.categoria === 'Risco: Queda em Receita').length;
-    const riscoEngajamento = dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').length;
+    const elite = dados.filter(j => j.categoria === '⭐ Elite').length;
+    const muitoBom = dados.filter(j => j.categoria === '🏆 VIP Ativo').length;
+    const estavel = dados.filter(j => j.categoria === '📊 Estável').length;
+    const baixo = dados.filter(j => j.categoria === '⚠️ Atenção').length;
+    const riscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').length;
+    const riscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').length;
     
     return {
         ...resumoOriginal,
@@ -174,8 +174,8 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
             risco_engajamento: (riscoEngajamento / total * 100).toFixed(2)
         },
         top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
-        jogadores_risco_receita: dados.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50),
-        jogadores_risco_engajamento: dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50),
+        jogadores_risco_receita: dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50),
+        jogadores_risco_engajamento: dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50),
         regiao_atual: regiao,
         regiao_nome: regiao === 'es' ? 'Espanhol' : regiao === 'br' ? 'Brasil' : 'Internacional'
     };
@@ -313,8 +313,8 @@ function updateDashboardWithData(resumo, dados) {
     
     // Atualiza tabelas - calcula a partir dos dados filtrados
     const topJogadores = dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
-    const jogadoresRiscoReceita = dados.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50);
-    const jogadoresRiscoEngajamento = dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50);
+    const jogadoresRiscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
+    const jogadoresRiscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
     
     updateTopJogadores(topJogadores);
     updateJogadoresRiscoReceita(jogadoresRiscoReceita);
@@ -486,7 +486,7 @@ function renderCategoriaChart(distribuicao) {
     categoriaChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Elite', 'Muito Bom', 'Estável', 'Baixo', 'Risco: Queda em Receita', 'Risco: Queda em Engajamento'],
+            labels: ['⭐ Elite', '🏆 VIP Ativo', '📊 Estável', '⚠️ Atenção', '🚨 Risco: Queda Receita', '🚨 Risco: Queda Engajamento'],
             datasets: [{
                 data: [
                     distribuicao.elite,
@@ -604,13 +604,18 @@ function renderScoresChart(resumo) {
  */
 function getBadgeClass(categoria) {
     const map = {
-        'Elite': 'badge-elite',
-        'Muito bom': 'badge-muito-bom',
-        'Estável': 'badge-estavel',
-        'Baixo': 'badge-baixo',
-        'Risco alto + Crítico': 'badge-risco',
-        'Risco: Queda em Receita': 'badge-risco-receita',
-        'Risco: Queda em Engajamento': 'badge-risco-engajamento'
+        '⭐ Elite': 'badge-elite',
+        '🏆 VIP Ativo': 'badge-muito-bom',
+        '📈 Bom': 'badge-muito-bom',
+        '📊 Estável': 'badge-estavel',
+        '⚠️ Atenção': 'badge-baixo',
+        '🚨 Risco Alto': 'badge-risco',
+        '💎 Churn Iminente': 'badge-risco',
+        '🚨 Risco: Queda Receita': 'badge-risco-receita',
+        '🚨 Risco: Queda Engajamento': 'badge-risco-engajamento',
+        '💰 Oportunidade': 'badge-muito-bom',
+        '💰 Oportunidade VIP': 'badge-elite',
+        '🎯 Potencial': 'badge-estavel'
     };
     return map[categoria] || 'badge-estavel';
 }
@@ -778,18 +783,20 @@ function updateClusterTable(clusterId, jogadores) {
 function updateClustersSection(dados) {
     if (!dados) return;
     
-    // Filtra top 50 de cada categoria
-    const elite = dados.filter(j => j.categoria === 'Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const muitoBom = dados.filter(j => j.categoria === 'Muito bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const estavel = dados.filter(j => j.categoria === 'Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const baixo = dados.filter(j => j.categoria === 'Baixo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const riscoReceita = dados.filter(j => j.categoria === 'Risco: Queda em Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const riscoEngajamento = dados.filter(j => j.categoria === 'Risco: Queda em Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    // Filtra top 50 de cada categoria (mapeando para IDs existentes no HTML)
+    const elite = dados.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const vipAtivo = dados.filter(j => j.categoria === '🏆 VIP Ativo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const bom = dados.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const estavel = dados.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const atencao = dados.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const riscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+    const riscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
     
+    // Atualiza tabelas existentes
     updateClusterTable('elite', elite);
-    updateClusterTable('muito-bom', muitoBom);
+    updateClusterTable('muito-bom', vipAtivo);  // VIP Ativo vai para Muito Bom
     updateClusterTable('estavel', estavel);
-    updateClusterTable('baixo', baixo);
+    updateClusterTable('baixo', atencao);  // Atenção vai para Baixo
     updateClusterTable('risco-receita', riscoReceita);
     updateClusterTable('risco-engajamento', riscoEngajamento);
 }
@@ -839,8 +846,8 @@ function updateDashboard(resumo, dadosCompletos) {
     
     // Atualiza tabelas - calcula a partir dos dados filtrados
     const topJogadores = dadosParaMostrar.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
-    const jogadoresRiscoReceita = dadosParaMostrar.filter(j => j.categoria === 'Risco: Queda em Receita').slice(0, 50);
-    const jogadoresRiscoEngajamento = dadosParaMostrar.filter(j => j.categoria === 'Risco: Queda em Engajamento').slice(0, 50);
+    const jogadoresRiscoReceita = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
+    const jogadoresRiscoEngajamento = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
     
     updateTopJogadores(topJogadores);
     updateJogadoresRiscoReceita(jogadoresRiscoReceita);
@@ -1399,12 +1406,18 @@ function atualizarTabelaClusters(ultimoDia) {
     const total = ultimoDia.total_jogadores;
     
     const clusterNomes = {
-        'Elite': { icone: '🏆', cor: '#fbbf24' },
-        'Muito bom': { icone: '✅', cor: '#34d399' },
-        'Estável': { icone: '📊', cor: '#60a5fa' },
-        'Baixo': { icone: '⚠️', cor: '#fb923c' },
-        'Risco: Queda em Receita': { icone: '🚨', cor: '#ef4444' },
-        'Risco: Queda em Engajamento': { icone: '📉', cor: '#f59e0b' }
+        '⭐ Elite': { icone: '⭐', cor: '#fbbf24' },
+        '🏆 VIP Ativo': { icone: '🏆', cor: '#34d399' },
+        '📈 Bom': { icone: '📈', cor: '#34d399' },
+        '📊 Estável': { icone: '📊', cor: '#60a5fa' },
+        '⚠️ Atenção': { icone: '⚠️', cor: '#fb923c' },
+        '🚨 Risco Alto': { icone: '🚨', cor: '#ef4444' },
+        '💎 Churn Iminente': { icone: '💎', cor: '#ef4444' },
+        '🚨 Risco: Queda Receita': { icone: '🚨', cor: '#ef4444' },
+        '🚨 Risco: Queda Engajamento': { icone: '📉', cor: '#f59e0b' },
+        '💰 Oportunidade': { icone: '💰', cor: '#a78bfa' },
+        '💰 Oportunidade VIP': { icone: '💎', cor: '#a78bfa' },
+        '🎯 Potencial': { icone: '🎯', cor: '#60a5fa' }
     };
     
     let html = '';
@@ -1541,15 +1554,15 @@ function atualizarGraficoClusters(ultimoDia) {
     execClustersChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Elite', 'Muito bom', 'Estável', 'Baixo', 'Risco Receita', 'Risco Engajamento'],
+            labels: ['⭐ Elite', '🏆 VIP Ativo', '📊 Estável', '⚠️ Atenção', '🚨 Risco Receita', '🚨 Risco Engajamento'],
             datasets: [{
                 data: [
-                    clusters['Elite'] || 0,
-                    clusters['Muito bom'] || 0,
-                    clusters['Estável'] || 0,
-                    clusters['Baixo'] || 0,
-                    clusters['Risco: Queda em Receita'] || 0,
-                    clusters['Risco: Queda em Engajamento'] || 0
+                    clusters['elite'] || 0,
+                    clusters['vip_ativo'] || 0,
+                    clusters['estavel'] || 0,
+                    clusters['atencao'] || 0,
+                    clusters['risco_receita'] || 0,
+                    clusters['risco_engajamento'] || 0
                 ],
                 backgroundColor: [
                     '#fbbf24',
