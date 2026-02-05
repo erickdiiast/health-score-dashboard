@@ -762,12 +762,12 @@ function toggleCluster(clusterId) {
     const content = document.getElementById(`cluster-${clusterId}-content`);
     const toggle = document.getElementById(`cluster-${clusterId}-toggle`);
     
-    if (content.classList.contains('expanded')) {
-        content.classList.remove('expanded');
-        toggle.classList.remove('expanded');
+    if (content.classList.contains('open')) {
+        content.classList.remove('open');
+        toggle.classList.remove('open');
     } else {
-        content.classList.add('expanded');
-        toggle.classList.add('expanded');
+        content.classList.add('open');
+        toggle.classList.add('open');
     }
 }
 
