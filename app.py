@@ -1357,14 +1357,9 @@ async def salvar_historico(request: Dict[str, Any]):
     filtros = request.get('filtros', {})
     data_custom = request.get('data')  # Data no formato YYYY-MM-DD
     
-    # Valida e formata a data
-    if data_custom:
-        try:
-            # Parse a data sem conversão de timezone
-            data_parsed = datetime.strptime(data_custom, "%Y-%m-%d")
-            data_usar = data_parsed.strftime("%Y-%m-%d")
-        except:
-            data_usar = datetime.now().strftime("%Y-%m-%d")
+    # Usa a data exatamente como recebida do frontend, sem conversões
+    if data_custom and len(data_custom) == 10:
+        data_usar = data_custom  # Já está no formato YYYY-MM-DD
     else:
         data_usar = datetime.now().strftime("%Y-%m-%d")
     

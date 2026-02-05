@@ -149,11 +149,17 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
     
     const ativos = dados.filter(j => j.ativo).length;
     
-    // Calcula distribuição de categorias
+    // Calcula distribuição de categorias (todas as novas categorias)
     const elite = dados.filter(j => j.categoria === '⭐ Elite').length;
-    const muitoBom = dados.filter(j => j.categoria === '🏆 VIP Ativo').length;
+    const vipAtivo = dados.filter(j => j.categoria === '🏆 VIP Ativo').length;
+    const bom = dados.filter(j => j.categoria === '📈 Bom').length;
     const estavel = dados.filter(j => j.categoria === '📊 Estável').length;
-    const baixo = dados.filter(j => j.categoria === '⚠️ Atenção').length;
+    const atencao = dados.filter(j => j.categoria === '⚠️ Atenção').length;
+    const riscoAlto = dados.filter(j => j.categoria === '🚨 Risco Alto').length;
+    const churn = dados.filter(j => j.categoria === '💎 Churn Iminente').length;
+    const oportunidade = dados.filter(j => j.categoria === '💰 Oportunidade').length;
+    const oportunidadeVip = dados.filter(j => j.categoria === '💰 Oportunidade VIP').length;
+    const potencial = dados.filter(j => j.categoria === '🎯 Potencial').length;
     const riscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').length;
     const riscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').length;
     
@@ -166,12 +172,18 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
         media_saude_compras: dados.reduce((a, b) => a + b.score_compras, 0) / total,
         media_pontuacao_geral: dados.reduce((a, b) => a + b.score_geral, 0) / total,
         distribuicao_categorias: {
-            elite: (elite / total * 100).toFixed(2),
-            muito_bom: (muitoBom / total * 100).toFixed(2),
-            estavel: (estavel / total * 100).toFixed(2),
-            baixo: (baixo / total * 100).toFixed(2),
-            risco_receita: (riscoReceita / total * 100).toFixed(2),
-            risco_engajamento: (riscoEngajamento / total * 100).toFixed(2)
+            elite: parseFloat((elite / total * 100).toFixed(2)),
+            vip_ativo: parseFloat((vipAtivo / total * 100).toFixed(2)),
+            bom: parseFloat((bom / total * 100).toFixed(2)),
+            estavel: parseFloat((estavel / total * 100).toFixed(2)),
+            atencao: parseFloat((atencao / total * 100).toFixed(2)),
+            risco_alto: parseFloat((riscoAlto / total * 100).toFixed(2)),
+            churn_iminente: parseFloat((churn / total * 100).toFixed(2)),
+            oportunidade: parseFloat((oportunidade / total * 100).toFixed(2)),
+            oportunidade_vip: parseFloat((oportunidadeVip / total * 100).toFixed(2)),
+            potencial: parseFloat((potencial / total * 100).toFixed(2)),
+            risco_receita: parseFloat((riscoReceita / total * 100).toFixed(2)),
+            risco_engajamento: parseFloat((riscoEngajamento / total * 100).toFixed(2))
         },
         top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
         jogadores_risco_receita: dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50),
