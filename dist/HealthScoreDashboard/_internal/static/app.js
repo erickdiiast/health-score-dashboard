@@ -454,20 +454,30 @@ function updateScores(resumo) {
  * Atualiza distribuição de categorias
  */
 function updateCategorias(distribuicao) {
-    document.getElementById('cat-elite').textContent = distribuicao.elite + '%';
-    document.getElementById('cat-muito-bom').textContent = distribuicao.muito_bom + '%';
-    document.getElementById('cat-estavel').textContent = distribuicao.estavel + '%';
-    document.getElementById('cat-baixo').textContent = distribuicao.baixo + '%';
-    document.getElementById('cat-risco-receita').textContent = distribuicao.risco_receita + '%';
-    document.getElementById('cat-risco-engajamento').textContent = distribuicao.risco_engajamento + '%';
+    // Mapeia novas chaves para os IDs do HTML (mantendo compatibilidade com layout antigo)
+    const valores = {
+        'elite': distribuicao.elite || 0,
+        'muito_bom': (distribuicao.vip_ativo || 0) + (distribuicao.bom || 0), // Agrupa VIP Ativo + Bom
+        'estavel': distribuicao.estavel || 0,
+        'baixo': (distribuicao.atencao || 0) + (distribuicao.risco_alto || 0), // Agrupa Atenção + Risco Alto
+        'risco_receita': distribuicao.risco_receita || 0,
+        'risco_engajamento': distribuicao.risco_engajamento || 0
+    };
+    
+    document.getElementById('cat-elite').textContent = valores.elite.toFixed(2) + '%';
+    document.getElementById('cat-muito-bom').textContent = valores.muito_bom.toFixed(2) + '%';
+    document.getElementById('cat-estavel').textContent = valores.estavel.toFixed(2) + '%';
+    document.getElementById('cat-baixo').textContent = valores.baixo.toFixed(2) + '%';
+    document.getElementById('cat-risco-receita').textContent = valores.risco_receita.toFixed(2) + '%';
+    document.getElementById('cat-risco-engajamento').textContent = valores.risco_engajamento.toFixed(2) + '%';
     
     // Atualiza barras de progresso
-    document.getElementById('progress-elite').style.width = distribuicao.elite + '%';
-    document.getElementById('progress-muito-bom').style.width = distribuicao.muito_bom + '%';
-    document.getElementById('progress-estavel').style.width = distribuicao.estavel + '%';
-    document.getElementById('progress-baixo').style.width = distribuicao.baixo + '%';
-    document.getElementById('progress-risco-receita').style.width = distribuicao.risco_receita + '%';
-    document.getElementById('progress-risco-engajamento').style.width = distribuicao.risco_engajamento + '%';
+    document.getElementById('progress-elite').style.width = valores.elite + '%';
+    document.getElementById('progress-muito-bom').style.width = valores.muito_bom + '%';
+    document.getElementById('progress-estavel').style.width = valores.estavel + '%';
+    document.getElementById('progress-baixo').style.width = valores.baixo + '%';
+    document.getElementById('progress-risco-receita').style.width = valores.risco_receita + '%';
+    document.getElementById('progress-risco-engajamento').style.width = valores.risco_engajamento + '%';
 }
 
 /**
@@ -483,18 +493,28 @@ function renderCategoriaChart(distribuicao) {
         categoriaChart.destroy();
     }
     
+    // Agrupa categorias para manter compatibilidade com o gráfico
+    const valores = {
+        elite: distribuicao.elite || 0,
+        vip_ativo: (distribuicao.vip_ativo || 0) + (distribuicao.bom || 0),
+        estavel: distribuicao.estavel || 0,
+        atencao: (distribuicao.atencao || 0) + (distribuicao.risco_alto || 0) + (distribuicao.churn_iminente || 0),
+        risco_receita: distribuicao.risco_receita || 0,
+        risco_engajamento: distribuicao.risco_engajamento || 0
+    };
+    
     categoriaChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['⭐ Elite', '🏆 VIP Ativo', '📊 Estável', '⚠️ Atenção', '🚨 Risco: Queda Receita', '🚨 Risco: Queda Engajamento'],
+            labels: ['⭐ Elite', '🏆 VIP Ativo/Bom', '📊 Estável', '⚠️ Atenção/Risco', '🚨 Risco: Queda Receita', '🚨 Risco: Queda Engajamento'],
             datasets: [{
                 data: [
-                    distribuicao.elite,
-                    distribuicao.muito_bom,
-                    distribuicao.estavel,
-                    distribuicao.baixo,
-                    distribuicao.risco_receita,
-                    distribuicao.risco_engajamento
+                    valores.elite,
+                    valores.vip_ativo,
+                    valores.estavel,
+                    valores.atencao,
+                    valores.risco_receita,
+                    valores.risco_engajamento
                 ],
                 backgroundColor: [
                     '#fbbf24',
