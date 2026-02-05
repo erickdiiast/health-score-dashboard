@@ -147,6 +147,23 @@ def get_vip_info(nivel: int) -> Dict:
     return VIP_MAPPING.get(nivel, {'nome': 'Desconhecido', 'cor': '#95A5A6', 'icone': '❓'})
 
 
+def media_sem_zeros(serie) -> float:
+    """
+    Calcula média desconsiderando zeros e valores nulos.
+    Apenas participantes ativos entram no cálculo.
+    """
+    if serie is None or len(serie) == 0:
+        return 0
+    
+    # Filtra apenas valores > 0 (participantes ativos)
+    valores_validos = serie[serie > 0]
+    
+    if len(valores_validos) == 0:
+        return 0
+    
+    return valores_validos.mean()
+
+
 def get_regiao(translation: str) -> str:
     """
     Identifica a região do jogador baseado na tradução.
@@ -220,58 +237,62 @@ class HealthScoreCalculator:
         # Calcula médias e converte para "por dia"
         # Fórmula: MÉDIA(qtd_xxx_3d) / 3 = média por dia
         
-        # Torneios
+        # Torneios - média apenas de quem participou (ignora zeros)
         col_torneios = encontrar_coluna(col_mapping['torneios'])
         if col_torneios:
-            media_torneios_3d = df[col_torneios].mean()
+            media_torneios_3d = media_sem_zeros(df[col_torneios])
             params['torneios_por_dia'] = media_torneios_3d / 3
             params['media_torneios_3d'] = media_torneios_3d
-            # Desvio padrão (DESVPAD.P no Excel)
-            params['desvpad_torneios_3d'] = df[col_torneios].std()
-            # Mediana (MED no Excel)
-            params['mediana_torneios_3d'] = df[col_torneios].median()
+            # Desvio padrão e mediana também ignorando zeros
+            valores_torneios = df[col_torneios][df[col_torneios] > 0]
+            params['desvpad_torneios_3d'] = valores_torneios.std() if len(valores_torneios) > 0 else 0
+            params['mediana_torneios_3d'] = valores_torneios.median() if len(valores_torneios) > 0 else 0
         else:
             params['torneios_por_dia'] = DEFAULT_PARAMS['torneios_por_dia']
         
-        # Maratonas
+        # Maratonas - média apenas de quem participou (ignora zeros)
         col_maratonas = encontrar_coluna(col_mapping['maratonas'])
         if col_maratonas:
-            media_maratonas_3d = df[col_maratonas].mean()
+            media_maratonas_3d = media_sem_zeros(df[col_maratonas])
             params['maratonas_por_dia'] = media_maratonas_3d / 3
             params['media_maratonas_3d'] = media_maratonas_3d
-            params['desvpad_maratonas_3d'] = df[col_maratonas].std()
-            params['mediana_maratonas_3d'] = df[col_maratonas].median()
+            valores_maratonas = df[col_maratonas][df[col_maratonas] > 0]
+            params['desvpad_maratonas_3d'] = valores_maratonas.std() if len(valores_maratonas) > 0 else 0
+            params['mediana_maratonas_3d'] = valores_maratonas.median() if len(valores_maratonas) > 0 else 0
         else:
             params['maratonas_por_dia'] = DEFAULT_PARAMS['maratonas_por_dia']
         
-        # Missões
+        # Missões - média apenas de quem participou (ignora zeros)
         col_missoes = encontrar_coluna(col_mapping['missoes'])
         if col_missoes:
-            media_missoes_3d = df[col_missoes].mean()
+            media_missoes_3d = media_sem_zeros(df[col_missoes])
             params['missoes_por_dia'] = media_missoes_3d / 3
             params['media_missoes_3d'] = media_missoes_3d
-            params['desvpad_missoes_3d'] = df[col_missoes].std()
-            params['mediana_missoes_3d'] = df[col_missoes].median()
+            valores_missoes = df[col_missoes][df[col_missoes] > 0]
+            params['desvpad_missoes_3d'] = valores_missoes.std() if len(valores_missoes) > 0 else 0
+            params['mediana_missoes_3d'] = valores_missoes.median() if len(valores_missoes) > 0 else 0
         else:
             params['missoes_por_dia'] = DEFAULT_PARAMS['missoes_por_dia']
         
-        # Promoções
+        # Promoções - média apenas de quem participou (ignora zeros)
         col_promos = encontrar_coluna(col_mapping['promos'])
         if col_promos:
-            media_promos_3d = df[col_promos].mean()
+            media_promos_3d = media_sem_zeros(df[col_promos])
             params['promos_por_dia'] = media_promos_3d / 3
             params['media_promos_3d'] = media_promos_3d
-            params['desvpad_promos_3d'] = df[col_promos].std()
-            params['mediana_promos_3d'] = df[col_promos].median()
+            valores_promos = df[col_promos][df[col_promos] > 0]
+            params['desvpad_promos_3d'] = valores_promos.std() if len(valores_promos) > 0 else 0
+            params['mediana_promos_3d'] = valores_promos.median() if len(valores_promos) > 0 else 0
         else:
             params['promos_por_dia'] = DEFAULT_PARAMS['promos_por_dia']
         
-        # Logins
+        # Logins - média apenas de quem logou (ignora zeros)
         col_logins = encontrar_coluna(['qtd_logins_3d', 'logins_3d'])
         if col_logins:
-            params['media_logins_3d'] = df[col_logins].mean()
-            params['desvpad_logins_3d'] = df[col_logins].std()
-            params['mediana_logins_3d'] = df[col_logins].median()
+            params['media_logins_3d'] = media_sem_zeros(df[col_logins])
+            valores_logins = df[col_logins][df[col_logins] > 0]
+            params['desvpad_logins_3d'] = valores_logins.std() if len(valores_logins) > 0 else 0
+            params['mediana_logins_3d'] = valores_logins.median() if len(valores_logins) > 0 else 0
         
         # Calcula os fatores de conversão
         # Fórmula: 100 / (média_3d * 1.5) - jogador acima da média ganha mais pontos
@@ -421,9 +442,9 @@ class HealthScoreCalculator:
         scores = []
         hoje = datetime.now()
         
-        # Calcula médias dinâmicas para benchmarks
-        media_qtd = df['qtd_compras_7d'].mean() if 'qtd_compras_7d' in df.columns else 2
-        media_ticket = df['ticket_medio_7d'].mean() if 'ticket_medio_7d' in df.columns else 50
+        # Calcula médias dinâmicas para benchmarks (ignorando zeros)
+        media_qtd = media_sem_zeros(df['qtd_compras_7d']) if 'qtd_compras_7d' in df.columns else 2
+        media_ticket = media_sem_zeros(df['ticket_medio_7d']) if 'ticket_medio_7d' in df.columns else 50
         
         for _, row in df.iterrows():  
             pontuacoes = []
