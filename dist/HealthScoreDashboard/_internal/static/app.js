@@ -420,15 +420,34 @@ function showLoading() {
  * Mostra dashboard
  */
 function showDashboard() {
+    console.log('>>> showDashboard() chamado');
+    
+    const emptyState = document.getElementById('empty-state');
+    const loading = document.getElementById('loading');
+    const dashboard = document.getElementById('dashboard');
+    
+    console.log('Elementos encontrados:', {
+        emptyState: !!emptyState,
+        loading: !!loading,
+        dashboard: !!dashboard
+    });
+    
     hideElement('empty-state');
     hideElement('loading');
     showElement('dashboard');
     
+    console.log('Dashboard classes:', dashboard?.className);
+    
     // Ativa a primeira aba (overview) se nenhuma estiver ativa
     const activeTab = document.querySelector('.tab-content.active');
+    console.log('Aba ativa encontrada:', activeTab?.id);
+    
     if (!activeTab) {
+        console.log('Ativando tab-overview...');
         showTab('tab-overview');
     }
+    
+    console.log('<<< showDashboard() concluído');
 }
 
 /**
@@ -443,6 +462,7 @@ function formatNumber(num) {
  * Atualiza KPI cards
  */
 function updateKPIs(resumo) {
+    console.log('updateKPIs - resumo:', resumo);
     document.getElementById('total-jogadores').textContent = resumo.total_jogadores;
     document.getElementById('percentual-ativos').textContent = formatNumber(resumo.percentual_ativos) + '%';
     document.getElementById('pontuacao-geral').textContent = formatNumber(resumo.media_pontuacao_geral);
@@ -453,6 +473,7 @@ function updateKPIs(resumo) {
  * Atualiza cards de scores
  */
 function updateScores(resumo) {
+    console.log('updateScores - resumo:', resumo);
     // Atualiza valores (apenas Engajamento e Compras)
     document.getElementById('score-engajamento').textContent = formatNumber(resumo.media_saude_engajamento);
     document.getElementById('score-compras').textContent = formatNumber(resumo.media_saude_compras);
@@ -466,6 +487,7 @@ function updateScores(resumo) {
  * Atualiza distribuição de categorias
  */
 function updateCategorias(distribuicao) {
+    console.log('updateCategorias - distribuicao:', distribuicao);
     // Mapeia TODAS as categorias novas para os 6 grupos do HTML
     const valores = {
         'elite': (distribuicao.elite || 0) + (distribuicao.oportunidade_vip || 0), // Elite + Oportunidade VIP
@@ -868,6 +890,10 @@ function updateClustersSection(dados) {
  * Atualiza todo o dashboard com os dados
  */
 function updateDashboard(resumo, dadosCompletos) {
+    console.log('>>> updateDashboard() chamado');
+    console.log('resumo:', resumo);
+    console.log('dadosCompletos:', dadosCompletos ? dadosCompletos.length + ' registros' : 'null/undefined');
+    
     // Guarda em cache
     cachedResumo = resumo;
     if (dadosCompletos) {
@@ -926,6 +952,8 @@ function updateDashboard(resumo, dadosCompletos) {
     if (resumoParaMostrar.analise_vip) {
         updateVIPSection(resumoParaMostrar.analise_vip);
     }
+    
+    console.log('<<< updateDashboard() concluído');
 }
 
 /**
