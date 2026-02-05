@@ -503,6 +503,12 @@ function renderCategoriaChart(distribuicao) {
     const canvas = document.getElementById('categoriaChart');
     if (!canvas) return;
     
+    // Verificação de segurança para distribuição
+    if (!distribuicao) {
+        console.warn('distribuicao é undefined/null em renderCategoriaChart');
+        distribuicao = {};
+    }
+    
     const ctx = canvas.getContext('2d');
     
     if (categoriaChart) {
@@ -575,6 +581,12 @@ function renderCategoriaChart(distribuicao) {
 function renderScoresChart(resumo) {
     const canvas = document.getElementById('scoresChart');
     if (!canvas) return;
+    
+    // Verificação de segurança para resumo
+    if (!resumo) {
+        console.warn('resumo é undefined/null em renderScoresChart');
+        resumo = {};
+    }
     
     const ctx = canvas.getContext('2d');
     
@@ -895,17 +907,21 @@ function updateDashboard(resumo, dadosCompletos) {
         renderScoresChart(resumoParaMostrar);
     }
     
-    // Atualiza tabelas - calcula a partir dos dados filtrados
-    const topJogadores = dadosParaMostrar.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
-    const jogadoresRiscoReceita = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
-    const jogadoresRiscoEngajamento = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
-    
-    updateTopJogadores(topJogadores);
-    updateJogadoresRiscoReceita(jogadoresRiscoReceita);
-    updateJogadoresRiscoEngajamento(jogadoresRiscoEngajamento);
-    
-    // Atualiza seção de clusters
-    updateClustersSection(dadosParaMostrar);
+    // Atualiza tabelas - calcula a partir dos dados filtrados (com verificação de segurança)
+    if (dadosParaMostrar && Array.isArray(dadosParaMostrar)) {
+        const topJogadores = dadosParaMostrar.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
+        const jogadoresRiscoReceita = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
+        const jogadoresRiscoEngajamento = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
+        
+        updateTopJogadores(topJogadores);
+        updateJogadoresRiscoReceita(jogadoresRiscoReceita);
+        updateJogadoresRiscoEngajamento(jogadoresRiscoEngajamento);
+        
+        // Atualiza seção de clusters
+        updateClustersSection(dadosParaMostrar);
+    } else {
+        console.warn('dadosParaMostrar não é um array válido:', dadosParaMostrar);
+    }
     
     if (resumoParaMostrar.analise_vip) {
         updateVIPSection(resumoParaMostrar.analise_vip);
@@ -957,10 +973,20 @@ async function handleFileUpload(event) {
         if (data.success) {
             console.log('Atualizando dashboard...');
             // Busca dados completos
-            const dadosResponse = await fetch('/api/dados');
-            const dadosData = await dadosResponse.json();
-            
-            updateDashboard(data.resumo, dadosData.dados_completos);
+            try {
+                const dadosResponse = await fetch('/api/dados');
+                if (!dadosResponse.ok) {
+                    throw new Error('Falha ao buscar dados completos');
+                }
+                const dadosData = await dadosResponse.json();
+                console.log('Dados completos recebidos:', dadosData.dados_completos ? dadosData.dados_completos.length : 0, 'registros');
+                
+                updateDashboard(data.resumo, dadosData.dados_completos);
+            } catch (dadosError) {
+                console.warn('Erro ao buscar dados completos, usando resumo apenas:', dadosError);
+                // Mesmo sem dados completos, mostra o dashboard com o resumo
+                updateDashboard(data.resumo, []);
+            }
             showDashboard();
             console.log('Dashboard atualizado!');
         } else {
