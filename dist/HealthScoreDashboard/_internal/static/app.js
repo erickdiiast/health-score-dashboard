@@ -577,7 +577,7 @@ function renderCategoriaChart(distribuicao) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -641,7 +641,7 @@ function renderScoresChart(resumo) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
                     display: false
@@ -927,14 +927,16 @@ function updateDashboard(resumo, dadosCompletos) {
     updateScores(resumoParaMostrar);
     updateCategorias(resumoParaMostrar.distribuicao_categorias);
     
-    // Renderiza gráficos da aba ativa
+    // Renderiza gráficos da aba ativa (com delay para garantir visibilidade do dashboard)
     const activeTab = document.querySelector('.tab-content.active');
-    if (activeTab) {
-        renderTabContent(activeTab.id, resumoParaMostrar);
-    } else {
-        renderCategoriaChart(resumoParaMostrar.distribuicao_categorias);
-        renderScoresChart(resumoParaMostrar);
-    }
+    setTimeout(() => {
+        if (activeTab) {
+            renderTabContent(activeTab.id, resumoParaMostrar);
+        } else {
+            renderCategoriaChart(resumoParaMostrar.distribuicao_categorias);
+            renderScoresChart(resumoParaMostrar);
+        }
+    }, 100);
     
     // Atualiza tabelas - calcula a partir dos dados filtrados (com verificação de segurança)
     if (dadosParaMostrar && Array.isArray(dadosParaMostrar)) {
@@ -1198,7 +1200,7 @@ function renderVIPChart(vips) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -1240,7 +1242,7 @@ function renderVIPScoresChart(vips) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: { display: false }
             },
@@ -1312,7 +1314,7 @@ function renderBenchmarksSection(resumo) {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 plugins: {
                     legend: { position: 'bottom' }
                 },

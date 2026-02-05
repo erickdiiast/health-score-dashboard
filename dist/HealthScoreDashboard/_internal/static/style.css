@@ -387,6 +387,22 @@ input[type="file"] {
 .chart-container {
     position: relative;
     height: 300px;
+    max-height: 300px;
+}
+
+/* Limita tamanho dos canvas */
+.chart-card canvas {
+    max-height: 300px !important;
+    width: 100% !important;
+}
+
+/* Container de gráficos - limita altura máxima */
+.chart-card {
+    background: var(--bg-card);
+    padding: 25px;
+    border-radius: var(--border-radius);
+    max-height: 400px;
+    overflow: hidden;
 }
 
 /* KPI Cards */
