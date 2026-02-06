@@ -252,6 +252,10 @@ function calcularAnaliseVIP(dados) {
             const missoes = jogadoresNivel.map(d => d.qtd_missoes_3d || 0);
             const promos = jogadoresNivel.map(d => d.qtd_promos_3d || 0);
             
+            // Calcula percentual de ativos (login >= 50)
+            const ativos = jogadoresNivel.filter(j => j.score_login >= 50).length;
+            const percentualAtivos = (ativos / count * 100).toFixed(2);
+            
             analise[`vip_${nivel}`] = {
                 nivel: nivel,
                 nome: nomesVIP[nivel].nome,
@@ -259,6 +263,7 @@ function calcularAnaliseVIP(dados) {
                 icone: nomesVIP[nivel].icone,
                 quantidade: count,
                 percentual: ((count / total) * 100).toFixed(2),
+                percentual_ativos: percentualAtivos,
                 score_geral_medio: (jogadoresNivel.reduce((a, b) => a + b.score_geral, 0) / count).toFixed(2),
                 score_login_medio: (jogadoresNivel.reduce((a, b) => a + b.score_login, 0) / count).toFixed(2),
                 score_engajamento_medio: (jogadoresNivel.reduce((a, b) => a + b.score_engajamento, 0) / count).toFixed(2),
@@ -1402,11 +1407,11 @@ async function carregarHistorico() {
                 atualizarKPIsExecutivo(data.historico);
                 atualizarGraficoEvolucao(data.historico);
                 const ultimoDia = data.historico[data.historico.length - 1];
-                atualizarTabelaClusters(ultimoDia);
+                const penultimoDia = data.historico.length > 1 ? data.historico[data.historico.length - 2] : null;
+                atualizarTabelaClusters(ultimoDia, penultimoDia);
                 
-                if (execClustersChart) {
-                    atualizarGraficoClusters(ultimoDia);
-                }
+                // Sempre renderiza o gráfico de clusters
+                atualizarGraficoClusters(ultimoDia);
             }
         }
     } catch (error) {
@@ -1456,17 +1461,19 @@ function atualizarVariacao(elementId, valor, decimais) {
 }
 
 /**
- * Atualiza tabela de clusters
+ * Atualiza tabela de clusters com tendência
  */
-function atualizarTabelaClusters(ultimoDia) {
+function atualizarTabelaClusters(ultimoDia, penultimoDia) {
     const tbody = document.getElementById('exec-clusters-body');
     if (!tbody) return;
     
     const clusters = ultimoDia.clusters || {};
     const total = ultimoDia.total_jogadores || 0;
     
+    // Clusters do dia anterior (para tendência)
+    const clustersAnterior = penultimoDia ? (penultimoDia.clusters || {}) : null;
+    
     // Agrupa as categorias nos 6 grupos da tabela
-    // Nota: O historico do banco tem apenas 6 categorias basicas
     const grupos = {
         'Elite': (clusters['⭐ Elite'] || 0),
         'Muito bom': (clusters['🏆 VIP Ativo'] || 0),
@@ -1475,6 +1482,16 @@ function atualizarTabelaClusters(ultimoDia) {
         'Risco: Queda em Receita': clusters['🚨 Risco: Queda Receita'] || 0,
         'Risco: Queda em Engajamento': clusters['🚨 Risco: Queda Engajamento'] || 0
     };
+    
+    // Grupos do dia anterior
+    const gruposAnterior = clustersAnterior ? {
+        'Elite': (clustersAnterior['⭐ Elite'] || 0),
+        'Muito bom': (clustersAnterior['🏆 VIP Ativo'] || 0),
+        'Estável': clustersAnterior['📊 Estável'] || 0,
+        'Baixo': (clustersAnterior['⚠️ Atenção'] || 0),
+        'Risco: Queda em Receita': clustersAnterior['🚨 Risco: Queda Receita'] || 0,
+        'Risco: Queda em Engajamento': clustersAnterior['🚨 Risco: Queda Engajamento'] || 0
+    } : null;
     
     const grupoInfo = {
         'Elite': { icone: '⭐', cor: '#fbbf24' },
@@ -1490,12 +1507,26 @@ function atualizarTabelaClusters(ultimoDia) {
         const info = grupoInfo[nome];
         const pct = total > 0 ? (qtd / total * 100).toFixed(1) : 0;
         
+        // Calcula tendência
+        let tendencia = '-';
+        if (gruposAnterior) {
+            const qtdAnterior = gruposAnterior[nome] || 0;
+            const diff = qtd - qtdAnterior;
+            if (diff > 0) {
+                tendencia = `<span style="color: #10b981">▲ +${diff}</span>`;
+            } else if (diff < 0) {
+                tendencia = `<span style="color: #ef4444">▼ ${diff}</span>`;
+            } else {
+                tendencia = `<span style="color: #64748b">– 0</span>`;
+            }
+        }
+        
         html += `
             <tr>
                 <td><span style="color: ${info.cor}">${info.icone}</span> ${nome}</td>
                 <td>${qtd.toLocaleString()}</td>
                 <td>${pct}%</td>
-                <td>-</td>
+                <td>${tendencia}</td>
             </tr>
         `;
     }
@@ -1616,8 +1647,16 @@ function atualizarGraficoClusters(ultimoDia) {
     const ctx = document.getElementById('execClustersChart');
     if (!ctx) return;
     
+    // Verifica se o canvas está visível
+    if (ctx.offsetParent === null) {
+        // Canvas não está visível, agenda para atualizar quando estiver
+        setTimeout(() => atualizarGraficoClusters(ultimoDia), 500);
+        return;
+    }
+    
     if (execClustersChart) {
         execClustersChart.destroy();
+        execClustersChart = null;
     }
     
     const clusters = ultimoDia.clusters || {};
