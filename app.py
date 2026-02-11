@@ -434,41 +434,64 @@ class HealthScoreCalculator:
     
     def calcular_score_compras(self, df: pd.DataFrame) -> pd.Series:
         """
-        Calcula score de compras ponderado:
-        - Quantidade (40%): Frequência gera hábito
-        - Ticket Médio (35%): Valor monetário
+        Calcula score de compras usando Z-Score baseado em desvio padrão:
+        - Quantidade (40%): Z-score da quantidade de compras
+        - Ticket Médio (35%): Z-score do ticket médio
         - Recência (25%): Quanto mais recente, melhor
+        
+        Z-Score = (valor - média) / desvio_padrão
+        Score final = 50 + (z_score * 25)  # Média = 50, cada desvio = 25 pontos
         """
         scores = []
         hoje = datetime.now()
         
-        # Calcula médias dinâmicas para benchmarks (ignorando zeros)
-        media_qtd = media_sem_zeros(df['qtd_compras_7d']) if 'qtd_compras_7d' in df.columns else 2
-        media_ticket = media_sem_zeros(df['ticket_medio_7d']) if 'ticket_medio_7d' in df.columns else 50
+        # Calcula estatísticas para quantidade (ignorando zeros)
+        if 'qtd_compras_7d' in df.columns:
+            valores_qtd = df['qtd_compras_7d'].fillna(0)
+            media_qtd = valores_qtd.mean()
+            std_qtd = valores_qtd.std() if len(valores_qtd) > 1 else 1
+            if std_qtd == 0:
+                std_qtd = 1  # Evita divisão por zero
+        else:
+            media_qtd = 2
+            std_qtd = 1
+        
+        # Calcula estatísticas para ticket (ignorando zeros)
+        if 'ticket_medio_7d' in df.columns:
+            valores_ticket = df['ticket_medio_7d'].fillna(0)
+            media_ticket = valores_ticket.mean()
+            std_ticket = valores_ticket.std() if len(valores_ticket) > 1 else 1
+            if std_ticket == 0:
+                std_ticket = 1
+        else:
+            media_ticket = 50
+            std_ticket = 10
         
         for _, row in df.iterrows():  
             pontuacoes = []
             pesos = []
             
-            # 1. Quantidade de compras (40% de peso)
+            # 1. Quantidade de compras (40% de peso) - Z-Score
             if 'qtd_compras_7d' in df.columns:
                 qtd = row.get('qtd_compras_7d', 0) or 0
-                if media_qtd > 0:
-                    # Score: 100 = 1.5x a média
-                    qtd_score = min((qtd / (media_qtd * 1.5)) * 100, 100)
-                else:
-                    qtd_score = min(qtd * 33.33, 100)
+                # Calcula Z-Score
+                z_score_qtd = (qtd - media_qtd) / std_qtd
+                # Converte Z-Score para escala 0-100 (média = 50, desvio = 25)
+                qtd_score = 50 + (z_score_qtd * 25)
+                # Limita entre 0 e 100
+                qtd_score = max(0, min(100, qtd_score))
                 pontuacoes.append(qtd_score * 0.40)
                 pesos.append(0.40)
             
-            # 2. Ticket médio (35% de peso)
+            # 2. Ticket médio (35% de peso) - Z-Score
             if 'ticket_medio_7d' in df.columns:
                 ticket = row.get('ticket_medio_7d', 0) or 0
-                if media_ticket > 0:
-                    # Score: 100 = 1.5x a média do ticket
-                    ticket_score = min((ticket / (media_ticket * 1.5)) * 100, 100)
-                else:
-                    ticket_score = min(ticket / 50 * 100, 100)
+                # Calcula Z-Score
+                z_score_ticket = (ticket - media_ticket) / std_ticket
+                # Converte Z-Score para escala 0-100
+                ticket_score = 50 + (z_score_ticket * 25)
+                # Limita entre 0 e 100
+                ticket_score = max(0, min(100, ticket_score))
                 pontuacoes.append(ticket_score * 0.35)
                 pesos.append(0.35)
             
