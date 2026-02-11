@@ -540,7 +540,7 @@ input[type="file"] {
 }
 
 .pontuacao-content {
-    display: none;
+    display: none !important;
     padding: 20px;
     background: var(--bg-card);
     border-radius: 0 0 var(--border-radius) var(--border-radius);
@@ -550,7 +550,7 @@ input[type="file"] {
 }
 
 .pontuacao-content.open {
-    display: block;
+    display: block !important;
     animation: slideDown 0.3s ease;
 }
 
