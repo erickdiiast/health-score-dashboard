@@ -197,6 +197,79 @@
                         </div>
                     </section>
 
+                    <!-- Seção Colapsável: Como Funciona a Pontuação -->
+                    <section class="pontuacao-section">
+                        <div class="pontuacao-header" onclick="togglePontuacao()">
+                            <h3><i class="fas fa-question-circle"></i> Como Funciona a Pontuação?</h3>
+                            <i class="fas fa-chevron-down pontuacao-toggle" id="pontuacao-toggle"></i>
+                        </div>
+                        <div class="pontuacao-content" id="pontuacao-content">
+                            <div class="pontuacao-grid">
+                                <div class="pontuacao-card">
+                                    <h4><i class="fas fa-calculator"></i> O que é Z-Score?</h4>
+                                    <p>O <strong>Z-Score</strong> é uma medida estatística que mostra a posição de um valor em relação à média da base, considerando o desvio padrão.</p>
+                                    <div class="formula-box">
+                                        <code>Z-Score = (Valor - Média) / Desvio Padrão</code>
+                                    </div>
+                                    <ul>
+                                        <li><strong>Z = 0:</strong> Jogador está na média (50 pontos)</li>
+                                        <li><strong>Z = +1:</strong> 1 desvio acima da média (75 pontos)</li>
+                                        <li><strong>Z = -1:</strong> 1 desvio abaixo da média (25 pontos)</li>
+                                        <li><strong>Z = +2:</strong> 2 desvios acima (100 pontos)</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="pontuacao-card">
+                                    <h4><i class="fas fa-shopping-cart"></i> Score de Compras (70%)</h4>
+                                    <p>Baseado em 3 fatores com Z-Score:</p>
+                                    <ul>
+                                        <li><strong>Quantidade (40%):</strong> Número de compras nos últimos 7 dias</li>
+                                        <li><strong>Ticket Médio (35%):</strong> Valor médio gasto por compra</li>
+                                        <li><strong>Recência (25%):</strong> Quanto tempo desde a última compra</li>
+                                    </ul>
+                                    <p class="pontuacao-nota">💡 <em>Quem compra acima da média da base ganha mais pontos!</em></p>
+                                </div>
+                                
+                                <div class="pontuacao-card">
+                                    <h4><i class="fas fa-gamepad"></i> Score de Engajamento (30%)</h4>
+                                    <p>Apenas atividades nos últimos 3 dias, sem considerar VIP:</p>
+                                    <ul>
+                                        <li><strong>Torneios:</strong> Participação em torneios</li>
+                                        <li><strong>Maratonas:</strong> Participação em maratonas</li>
+                                        <li><strong>Missões:</strong> Missões completadas</li>
+                                        <li><strong>Promoções:</strong> Ofertas aproveitadas</li>
+                                        <li><strong>Logins:</strong> Frequência de acesso</li>
+                                    </ul>
+                                    <p class="pontuacao-nota">💡 <em>Todos os jogadores são comparados na mesma base!</em></p>
+                                </div>
+                                
+                                <div class="pontuacao-card">
+                                    <h4><i class="fas fa-chart-pie"></i> Distribuição dos Pontos</h4>
+                                    <div class="distribuicao-visual">
+                                        <div class="distribuicao-item compras">
+                                            <span class="distribuicao-label">Compras</span>
+                                            <div class="distribuicao-bar">
+                                                <div class="distribuicao-fill" style="width: 70%"></div>
+                                            </div>
+                                            <span class="distribuicao-valor">70%</span>
+                                        </div>
+                                        <div class="distribuicao-item engajamento">
+                                            <span class="distribuicao-label">Engajamento</span>
+                                            <div class="distribuicao-bar">
+                                                <div class="distribuicao-fill" style="width: 30%"></div>
+                                            </div>
+                                            <span class="distribuicao-valor">30%</span>
+                                        </div>
+                                    </div>
+                                    <p class="pontuacao-resumo">
+                                        <strong>Health Score =</strong><br>
+                                        (Score Compras × 0.70) + (Score Engajamento × 0.30)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- Health Scores -->
                     <section class="scores-section">
                         <h3><i class="fas fa-heartbeat"></i> Scores de Saúde (Composição: Engajamento 30% + Compras 70%)

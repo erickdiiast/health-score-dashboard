@@ -777,6 +777,22 @@ function toggleCluster(clusterId) {
 }
 
 /**
+ * Toggle da seção de pontuação
+ */
+function togglePontuacao() {
+    const content = document.getElementById('pontuacao-content');
+    const toggle = document.getElementById('pontuacao-toggle');
+    
+    if (content.classList.contains('open')) {
+        content.classList.remove('open');
+        toggle.classList.remove('open');
+    } else {
+        content.classList.add('open');
+        toggle.classList.add('open');
+    }
+}
+
+/**
  * Atualiza tabela de cluster com jogadores
  */
 function updateClusterTable(clusterId, jogadores) {
