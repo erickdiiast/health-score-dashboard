@@ -369,66 +369,64 @@ class HealthScoreCalculator:
     
     def calcular_score_engajamento(self, df: pd.DataFrame) -> pd.Series:
         """
-        Calcula score de engajamento ponderado:
-        - Atividades (60%): Torneios, Maratonas, Missões, Promoções
-        - Nível VIP (40%): Comprometimento histórico
+        Calcula score de engajamento usando Z-Score baseado em desvio padrão:
+        - Torneios: Z-score da quantidade de torneios
+        - Maratonas: Z-score da quantidade de maratonas
+        - Missões: Z-score da quantidade de missões
+        - Promoções: Z-score da quantidade de promoções
+        - Logins: Z-score da quantidade de logins
+        
+        Z-Score = (valor - média) / desvio_padrão
+        Score final = 50 + (z_score * 25)  # Média = 50, cada desvio = 25 pontos
         """
         scores = []
         
+        # Calcula estatísticas para cada atividade (com fillna(0) para zeros)
+        atividades = {
+            'torneios': {'col': 'qtd_torneios_3d', 'peso': 2.0},
+            'maratonas': {'col': 'qtd_maratonas_3d', 'peso': 2.5},
+            'missoes': {'col': 'qtd_missoes_3d', 'peso': 1.5},
+            'promos': {'col': 'qtd_promos_3d', 'peso': 1.0},
+            'logins': {'col': 'qtd_logins_3d', 'peso': 1.0}
+        }
+        
+        # Calcula média e desvio padrão para cada atividade
+        stats = {}
+        for key, config in atividades.items():
+            col = config['col']
+            if col in df.columns:
+                valores = df[col].fillna(0)
+                media = valores.mean()
+                std = valores.std() if len(valores) > 1 else 1
+                if std == 0:
+                    std = 1  # Evita divisão por zero
+                stats[key] = {'media': media, 'std': std, 'peso': config['peso']}
+        
         for _, row in df.iterrows():
-            pontuacoes = []
-            pesos = []
-            
-            # 1. Atividades em conjunto (60% de peso)
             atividades_scores = []
             atividades_pesos = []
             
-            # Torneios (peso 2)
-            if 'qtd_torneios_3d' in df.columns:
-                torneios = row.get('qtd_torneios_3d', 0) or 0
-                torneios_score = min(torneios * self.params.get('torneios_factor', 2.2), 100)
-                atividades_scores.append(torneios_score * 2)
-                atividades_pesos.append(2)
-            
-            # Maratonas (peso 2.5)
-            if 'qtd_maratonas_3d' in df.columns:
-                maratonas = row.get('qtd_maratonas_3d', 0) or 0
-                maratonas_score = min(maratonas * self.params.get('maratonas_factor', 6.6), 100)
-                atividades_scores.append(maratonas_score * 2.5)
-                atividades_pesos.append(2.5)
-            
-            # Missões (peso 1.5)
-            if 'qtd_missoes_3d' in df.columns:
-                missoes = row.get('qtd_missoes_3d', 0) or 0
-                missoes_score = min(missoes * self.params.get('missoes_factor', 11.1), 100)
-                atividades_scores.append(missoes_score * 1.5)
-                atividades_pesos.append(1.5)
-            
-            # Promoções (peso 1)
-            if 'qtd_promos_3d' in df.columns:
-                promos = row.get('qtd_promos_3d', 0) or 0
-                promos_score = min(promos * self.params.get('promos_factor', 3.7), 100)
-                atividades_scores.append(promos_score * 1)
-                atividades_pesos.append(1)
+            # Calcula Z-Score para cada atividade
+            for key, stat in stats.items():
+                col = atividades[key]['col']
+                valor = row.get(col, 0) or 0
+                
+                # Calcula Z-Score
+                z_score = (valor - stat['media']) / stat['std']
+                # Converte Z-Score para escala 0-100 (média = 50, desvio = 25)
+                atividade_score = 50 + (z_score * 25)
+                # Limita entre 0 e 100
+                atividade_score = max(0, min(100, atividade_score))
+                
+                atividades_scores.append(atividade_score * stat['peso'])
+                atividades_pesos.append(stat['peso'])
             
             if atividades_scores:
-                atividades_final = sum(atividades_scores) / sum(atividades_pesos)
-                pontuacoes.append(atividades_final * 0.60)
-                pesos.append(0.60)
-            
-            # 2. Nível VIP (40% de peso)
-            if 'nivel_vip' in df.columns and pd.notna(row.get('nivel_vip')):
-                vip = row.get('nivel_vip', 1)
-                # VIP 1 = 20%, VIP 5 = 100%
-                vip_score = 20 + ((vip - 1) / 4) * 80
-                pontuacoes.append(vip_score * 0.40)
-                pesos.append(0.40)
-            
-            if pontuacoes:
-                score_final = sum(pontuacoes) / sum(pesos)
+                # Média ponderada das atividades
+                score_final = sum(atividades_scores) / sum(atividades_pesos)
                 scores.append(score_final)
             else:
-                scores.append(40)
+                scores.append(40)  # Score padrão se não houver dados
         
         return pd.Series(scores)
     
