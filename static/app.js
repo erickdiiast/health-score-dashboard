@@ -795,6 +795,80 @@ function togglePontuacao() {
 /**
  * Atualiza tabela de cluster com jogadores
  */
+// Cache para tendências de jogadores (evita múltiplas requisições)
+const playerTendenciaCache = {};
+
+/**
+ * Busca a tendência do jogador (subiu, desceu, manteve, novo)
+ */
+async function getPlayerTendencia(playerId) {
+    // Verifica cache
+    if (playerTendenciaCache[playerId] !== undefined) {
+        return playerTendenciaCache[playerId];
+    }
+    
+    try {
+        const response = await fetch(`/api/player/${playerId}/evolucao?dias=7`);
+        const data = await response.json();
+        
+        if (!data.success || !data.evolucao || !data.evolucao.evolucao) {
+            playerTendenciaCache[playerId] = null;
+            return null;
+        }
+        
+        const evolucao = data.evolucao.evolucao;
+        
+        // Se só tem 1 registro, é novo
+        if (evolucao.length <= 1) {
+            playerTendenciaCache[playerId] = 'novo';
+            return 'novo';
+        }
+        
+        // Pega primeiro e último registro
+        const primeiro = evolucao[0];
+        const ultimo = evolucao[evolucao.length - 1];
+        
+        // Determina a ordem dos clusters (do melhor para o pior)
+        const ordemClusters = [
+            '⭐ Elite', '🏆 VIP Ativo', '📈 Bom', '📊 Estável', 
+            '⚠️ Atenção', '🚨 Risco Alto', '🚨 Risco: Queda Receita', 
+            '🚨 Risco: Queda Engajamento', '💎 Churn Iminente',
+            '💰 Oportunidade VIP', '💰 Oportunidade', '🎯 Potencial'
+        ];
+        
+        const idxPrimeiro = ordemClusters.indexOf(primeiro.categoria);
+        const idxUltimo = ordemClusters.indexOf(ultimo.categoria);
+        
+        let tendencia = 'manteve';
+        if (idxUltimo < idxPrimeiro) {
+            tendencia = 'subiu';
+        } else if (idxUltimo > idxPrimeiro) {
+            tendencia = 'desceu';
+        }
+        
+        playerTendenciaCache[playerId] = tendencia;
+        return tendencia;
+        
+    } catch (error) {
+        console.error('Erro ao buscar tendência:', error);
+        playerTendenciaCache[playerId] = null;
+        return null;
+    }
+}
+
+/**
+ * Retorna o HTML da tag de tendência
+ */
+function getTendenciaTag(tendencia) {
+    const tags = {
+        'subiu': '<span class="tendencia-tag subiu" title="Subiu de cluster">▲</span>',
+        'desceu': '<span class="tendencia-tag desceu" title="Desceu de cluster">▼</span>',
+        'manteve': '<span class="tendencia-tag manteve" title="Manteve o cluster">~</span>',
+        'novo': '<span class="tendencia-tag novo" title="Jogador novo">*</span>'
+    };
+    return tags[tendencia] || '';
+}
+
 function updateClusterTable(clusterId, jogadores) {
     const tbody = document.getElementById(`cluster-${clusterId}-body`);
     const countEl = document.getElementById(`cluster-${clusterId}-count`);
@@ -812,9 +886,14 @@ function updateClusterTable(clusterId, jogadores) {
         return;
     }
     
-    jogadores.forEach((jogador, index) => {
+    // Processa jogadores de forma assíncrona para buscar tendências
+    jogadores.forEach(async (jogador, index) => {
         const row = document.createElement('tr');
         const playerId = jogador.player_id || jogador.id || Object.values(jogador)[0];
+        
+        // Busca tendência
+        const tendencia = await getPlayerTendencia(playerId);
+        const tendenciaTag = getTendenciaTag(tendencia);
         
         // Determina o nível VIP
         let vipLevel = jogador.nivel_vip || jogador.vip_level || '-';
@@ -833,7 +912,7 @@ function updateClusterTable(clusterId, jogadores) {
         
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${playerId}</td>
+            <td>${playerId} ${tendenciaTag}</td>
             <td>${formatNumber(jogador.score_geral || 0)}</td>
             <td>${formatNumber(jogador.score_engajamento || 0)}</td>
             <td>${formatNumber(jogador.score_compras || 0)}</td>
