@@ -91,6 +91,60 @@ def init_db():
         )
     ''')
     
+    # NOVA TABELA: Acompanhamento individual de jogadores
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS player_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id TEXT NOT NULL,
+            data TEXT NOT NULL,
+            data_timestamp TEXT NOT NULL,
+            
+            -- Scores calculados
+            score_geral REAL,
+            score_engajamento REAL,
+            score_compras REAL,
+            score_login REAL,
+            
+            -- Métricas brutas de compras
+            qtd_compras_7d INTEGER,
+            ticket_medio_7d REAL,
+            
+            -- Métricas brutas de engajamento
+            qtd_torneios_3d INTEGER,
+            qtd_maratonas_3d INTEGER,
+            qtd_missoes_3d INTEGER,
+            qtd_promos_3d INTEGER,
+            qtd_logins_3d INTEGER,
+            
+            -- Classificação
+            categoria TEXT,
+            nivel_vip INTEGER,
+            regiao TEXT,
+            
+            -- Campanhas (para análise de eficácia)
+            campanha_nome TEXT,
+            
+            -- Índices para consultas rápidas
+            FOREIGN KEY (player_id) REFERENCES players(player_id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Índices para performance
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_player_snapshots_player_date 
+        ON player_snapshots(player_id, data)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_player_snapshots_date 
+        ON player_snapshots(data)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_player_snapshots_categoria 
+        ON player_snapshots(categoria)
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -700,6 +754,14 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
         df['vip_cor'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['cor'])
         df['vip_icone'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['icone'])
     
+    # Salva snapshots individuais de cada jogador para acompanhamento de evolução
+    try:
+        data_hoje = datetime.now().strftime("%Y-%m-%d")
+        total_salvos = salvar_player_snapshots(df, data_hoje)
+        print(f"[INFO] {total_salvos} jogadores salvos para acompanhamento individual")
+    except Exception as e:
+        print(f"[WARN] Erro ao salvar player_snapshots: {e}")
+    
     return df, params
 
 
@@ -782,6 +844,258 @@ def salvar_snapshot(resumo: Dict, filtros: Dict = None, data_custom: str = None)
     conn.commit()
     conn.close()
     return snapshot_id
+
+
+def salvar_player_snapshots(df: pd.DataFrame, data_snapshot: str = None, campanha_nome: str = None):
+    """
+    Salva os dados individuais de cada jogador para acompanhamento de evolução.
+    Permite analisar flutuação entre clusters e impacto de campanhas.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    if data_snapshot is None:
+        data_snapshot = datetime.now().strftime("%Y-%m-%d")
+    
+    agora = datetime.now().isoformat()
+    
+    # Prepara dados para inserção em lote
+    player_data = []
+    
+    for _, row in df.iterrows():
+        player_data.append((
+            str(row.get('player_id', row.get('pid', ''))),
+            data_snapshot,
+            agora,
+            float(row.get('score_geral', 0)),
+            float(row.get('score_engajamento', 0)),
+            float(row.get('score_compras', 0)),
+            float(row.get('score_login', 0)),
+            int(row.get('qtd_compras_7d', 0) or 0),
+            float(row.get('ticket_medio_7d', 0) or 0),
+            int(row.get('qtd_torneios_3d', 0) or 0),
+            int(row.get('qtd_maratonas_3d', 0) or 0),
+            int(row.get('qtd_missoes_3d', 0) or 0),
+            int(row.get('qtd_promos_3d', 0) or 0),
+            int(row.get('qtd_logins_3d', 0) or 0),
+            str(row.get('categoria', '')),
+            int(row.get('nivel_vip', 1) or 1),
+            str(row.get('regiao', 'int')),
+            campanha_nome
+        ))
+    
+    # Insere em lote para performance
+    cursor.executemany('''
+        INSERT INTO player_snapshots (
+            player_id, data, data_timestamp,
+            score_geral, score_engajamento, score_compras, score_login,
+            qtd_compras_7d, ticket_medio_7d,
+            qtd_torneios_3d, qtd_maratonas_3d, qtd_missoes_3d, qtd_promos_3d, qtd_logins_3d,
+            categoria, nivel_vip, regiao, campanha_nome
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', player_data)
+    
+    conn.commit()
+    conn.close()
+    
+    return len(player_data)
+
+
+def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
+    """
+    Retorna a evolução histórica de um jogador específico.
+    Útil para analisar flutuação entre clusters e impacto de campanhas.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM player_snapshots 
+        WHERE player_id = ? 
+        AND data >= date('now', '-{} days')
+        ORDER BY data ASC
+    '''.format(dias), (player_id,))
+    
+    rows = cursor.fetchall()
+    
+    if not rows:
+        conn.close()
+        return {"error": "Nenhum histórico encontrado para este jogador"}
+    
+    # Processa evolução
+    evolucao = []
+    flutuacao_clusters = []
+    variacoes = []
+    
+    for i, row in enumerate(rows):
+        evolucao.append({
+            "data": row['data'],
+            "score_geral": round(row['score_geral'], 2),
+            "score_engajamento": round(row['score_engajamento'], 2),
+            "score_compras": round(row['score_compras'], 2),
+            "categoria": row['categoria'],
+            "campanha_nome": row['campanha_nome']
+        })
+        
+        flutuacao_clusters.append(row['categoria'])
+        
+        # Calcula variação em relação ao dia anterior
+        if i > 0:
+            var_geral = row['score_geral'] - rows[i-1]['score_geral']
+            var_engajamento = row['score_engajamento'] - rows[i-1]['score_engajamento']
+            var_compras = row['score_compras'] - rows[i-1]['score_compras']
+            
+            variacoes.append({
+                "data": row['data'],
+                "variacao_geral": round(var_geral, 2),
+                "variacao_engajamento": round(var_engajamento, 2),
+                "variacao_compras": round(var_compras, 2),
+                "mudanca_cluster": row['categoria'] != rows[i-1]['categoria']
+            })
+    
+    # Análise de clusters
+    cluster_atual = rows[-1]['categoria']
+    dias_no_cluster_atual = 0
+    for row in reversed(rows):
+        if row['categoria'] == cluster_atual:
+            dias_no_cluster_atual += 1
+        else:
+            break
+    
+    # Métricas de compras e engajamento
+    metricas_compras = {
+        "tendencia": "crescente" if len(rows) > 1 and rows[-1]['score_compras'] > rows[0]['score_compras'] else "decrescente",
+        "maior_score": round(max(r['score_compras'] for r in rows), 2),
+        "menor_score": round(min(r['score_compras'] for r in rows), 2),
+        "media": round(sum(r['score_compras'] for r in rows) / len(rows), 2)
+    }
+    
+    metricas_engajamento = {
+        "tendencia": "crescente" if len(rows) > 1 and rows[-1]['score_engajamento'] > rows[0]['score_engajamento'] else "decrescente",
+        "maior_score": round(max(r['score_engajamento'] for r in rows), 2),
+        "menor_score": round(min(r['score_engajamento'] for r in rows), 2),
+        "media": round(sum(r['score_engajamento'] for r in rows) / len(rows), 2)
+    }
+    
+    conn.close()
+    
+    return {
+        "player_id": player_id,
+        "total_registros": len(rows),
+        "periodo_dias": dias,
+        "cluster_atual": cluster_atual,
+        "dias_no_cluster_atual": dias_no_cluster_atual,
+        "historico_clusters": list(dict.fromkeys(flutuacao_clusters)),  # Remove duplicatas mantendo ordem
+        "evolucao": evolucao,
+        "variacoes": variacoes,
+        "metricas_compras": metricas_compras,
+        "metricas_engajamento": metricas_engajamento,
+        "resumo": {
+            "mudancas_cluster": sum(1 for v in variacoes if v['mudanca_cluster']),
+            "variacao_total_geral": round(rows[-1]['score_geral'] - rows[0]['score_geral'], 2) if len(rows) > 1 else 0,
+            "variacao_total_compras": round(rows[-1]['score_compras'] - rows[0]['score_compras'], 2) if len(rows) > 1 else 0,
+            "variacao_total_engajamento": round(rows[-1]['score_engajamento'] - rows[0]['score_engajamento'], 2) if len(rows) > 1 else 0
+        }
+    }
+
+
+def get_players_com_flutuacao(cluster_origem: str = None, cluster_destino: str = None, 
+                               dias: int = 7, tipo_flutuacao: str = 'melhora') -> List[Dict]:
+    """
+    Identifica jogadores que mudaram de cluster significativamente.
+    
+    tipo_flutuacao: 'melhora' (ex: Baixo -> Bom), 'piora' (ex: Bom -> Baixo), 'qualquer'
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Busca todos os jogadores com histórico no período
+    cursor.execute('''
+        SELECT player_id, COUNT(*) as total_registros
+        FROM player_snapshots 
+        WHERE data >= date('now', '-{} days')
+        GROUP BY player_id
+        HAVING total_registros >= 2
+    '''.format(dias))
+    
+    players = cursor.fetchall()
+    
+    resultado = []
+    
+    for player in players:
+        player_id = player['player_id']
+        
+        # Busca primeiro e último registro do período
+        cursor.execute('''
+            SELECT * FROM player_snapshots 
+            WHERE player_id = ? 
+            AND data >= date('now', '-{} days')
+            ORDER BY data ASC
+            LIMIT 1
+        '''.format(dias), (player_id,))
+        
+        primeiro = cursor.fetchone()
+        
+        cursor.execute('''
+            SELECT * FROM player_snapshots 
+            WHERE player_id = ? 
+            AND data >= date('now', '-{} days')
+            ORDER BY data DESC
+            LIMIT 1
+        '''.format(dias), (player_id,))
+        
+        ultimo = cursor.fetchone()
+        
+        if not primeiro or not ultimo:
+            continue
+        
+        # Verifica filtros de cluster
+        if cluster_origem and primeiro['categoria'] != cluster_origem:
+            continue
+        if cluster_destino and ultimo['categoria'] != cluster_destino:
+            continue
+        
+        # Determina se é melhora ou piora
+        # Ordem de "qualidade": Elite > VIP Ativo > Bom > Estável > Atenção > Risco
+        ordem_clusters = ['⭐ Elite', '🏆 VIP Ativo', '📈 Bom', '📊 Estável', 
+                         '⚠️ Atenção', '🚨 Risco Alto', '🚨 Risco: Queda Receita', 
+                         '🚨 Risco: Queda Engajamento', '💎 Churn Iminente']
+        
+        idx_origem = ordem_clusters.index(primeiro['categoria']) if primeiro['categoria'] in ordem_clusters else 999
+        idx_destino = ordem_clusters.index(ultimo['categoria']) if ultimo['categoria'] in ordem_clusters else 999
+        
+        melhorou = idx_destino < idx_origem
+        piorou = idx_destino > idx_origem
+        
+        if tipo_flutuacao == 'melhora' and not melhorou:
+            continue
+        if tipo_flutuacao == 'piora' and not piorou:
+            continue
+        if tipo_flutuacao == 'qualquer' and idx_origem == idx_destino:
+            continue
+        
+        resultado.append({
+            "player_id": player_id,
+            "cluster_origem": primeiro['categoria'],
+            "cluster_destino": ultimo['categoria'],
+            "data_inicio": primeiro['data'],
+            "data_fim": ultimo['data'],
+            "variacao_score": round(ultimo['score_geral'] - primeiro['score_geral'], 2),
+            "variacao_compras": round(ultimo['score_compras'] - primeiro['score_compras'], 2),
+            "variacao_engajamento": round(ultimo['score_engajamento'] - primeiro['score_engajamento'], 2),
+            "melhorou": melhorou,
+            "campanha_inicio": primeiro['campanha_nome'],
+            "campanha_fim": ultimo['campanha_nome']
+        })
+    
+    conn.close()
+    
+    # Ordena por maior variação de score
+    resultado.sort(key=lambda x: abs(x['variacao_score']), reverse=True)
+    
+    return resultado
 
 
 def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> List[Dict]:
@@ -1524,6 +1838,167 @@ async def get_resumo_executivo(
             } for h in historico[:7]  # Últimos 7 dias
         ]
     }
+
+
+# ========== ENDPOINTS DE ACOMPANHAMENTO INDIVIDUAL ==========
+
+@app.get("/api/player/{player_id}/evolucao")
+async def get_player_evolucao(
+    player_id: str,
+    dias: int = Query(30, description="Número de dias no histórico")
+):
+    """
+    Retorna a evolução histórica de um jogador específico.
+    Permite analisar flutuação entre clusters e impacto de campanhas.
+    """
+    try:
+        evolucao = get_evolucao_player(player_id, dias)
+        
+        if "error" in evolucao:
+            return {
+                "success": False,
+                "message": evolucao["error"]
+            }
+        
+        return {
+            "success": True,
+            "player_id": player_id,
+            "dias_analisados": dias,
+            "evolucao": evolucao
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Erro ao buscar evolução: {str(e)}"
+        }
+
+
+@app.get("/api/players/flutuacao")
+async def get_players_flutuacao(
+    cluster_origem: str = Query(None, description="Cluster de origem (ex: '⚠️ Atenção')"),
+    cluster_destino: str = Query(None, description="Cluster de destino (ex: '📈 Bom')"),
+    dias: int = Query(7, description="Período de análise em dias"),
+    tipo: str = Query("qualquer", description="Tipo: 'melhora', 'piora', 'qualquer'")
+):
+    """
+    Identifica jogadores que mudaram de cluster significativamente.
+    Útil para medir impacto de campanhas ou detectar churn.
+    """
+    try:
+        players = get_players_com_flutuacao(cluster_origem, cluster_destino, dias, tipo)
+        
+        return {
+            "success": True,
+            "total": len(players),
+            "filtros": {
+                "cluster_origem": cluster_origem,
+                "cluster_destino": cluster_destino,
+                "dias": dias,
+                "tipo": tipo
+            },
+            "players": players[:50]  # Limita a 50 resultados
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Erro ao buscar flutuações: {str(e)}"
+        }
+
+
+@app.get("/api/campanhas/analise")
+async def analisar_campanhas(
+    campanha_nome: str = Query(..., description="Nome da campanha para análise"),
+    dias_antes: int = Query(7, description="Dias antes do início da campanha"),
+    dias_depois: int = Query(7, description="Dias depois do início da campanha")
+):
+    """
+    Analisa a eficácia de uma campanha comparando comportamento antes/depois.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    try:
+        # Busca jogadores que participaram da campanha
+        cursor.execute('''
+            SELECT player_id, data, score_geral, score_engajamento, score_compras, categoria
+            FROM player_snapshots 
+            WHERE campanha_nome = ?
+            ORDER BY player_id, data ASC
+        ''', (campanha_nome,))
+        
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return {
+                "success": False,
+                "message": f"Nenhum dado encontrado para a campanha '{campanha_nome}'"
+            }
+        
+        # Agrupa por jogador
+        players_data = {}
+        for row in rows:
+            pid = row['player_id']
+            if pid not in players_data:
+                players_data[pid] = []
+            players_data[pid].append(row)
+        
+        # Analisa impacto
+        analise = {
+            "total_participantes": len(players_data),
+            "melhoraram": 0,
+            "pioraram": 0,
+            "mantiveram": 0,
+            "variacao_media_geral": 0,
+            "variacao_media_compras": 0,
+            "variacao_media_engajamento": 0
+        }
+        
+        variacoes_geral = []
+        variacoes_compras = []
+        variacoes_engajamento = []
+        
+        for pid, registros in players_data.items():
+            if len(registros) < 2:
+                continue
+            
+            primeiro = registros[0]
+            ultimo = registros[-1]
+            
+            var_geral = ultimo['score_geral'] - primeiro['score_geral']
+            var_compras = ultimo['score_compras'] - primeiro['score_compras']
+            var_engajamento = ultimo['score_engajamento'] - primeiro['score_engajamento']
+            
+            variacoes_geral.append(var_geral)
+            variacoes_compras.append(var_compras)
+            variacoes_engajamento.append(var_engajamento)
+            
+            if var_geral > 5:
+                analise["melhoraram"] += 1
+            elif var_geral < -5:
+                analise["pioraram"] += 1
+            else:
+                analise["mantiveram"] += 1
+        
+        if variacoes_geral:
+            analise["variacao_media_geral"] = round(sum(variacoes_geral) / len(variacoes_geral), 2)
+            analise["variacao_media_compras"] = round(sum(variacoes_compras) / len(variacoes_compras), 2)
+            analise["variacao_media_engajamento"] = round(sum(variacoes_engajamento) / len(variacoes_engajamento), 2)
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "campanha": campanha_nome,
+            "analise": analise
+        }
+        
+    except Exception as e:
+        conn.close()
+        return {
+            "success": False,
+            "message": f"Erro na análise: {str(e)}"
+        }
 
 
 @app.get("/api/sample")
