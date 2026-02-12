@@ -148,6 +148,9 @@
                     <button class="tab-btn" onclick="showTab('tab-clusters')" id="tab-btn-clusters">
                         <i class="fas fa-layer-group"></i> Clusters
                     </button>
+                    <button class="tab-btn" onclick="showTab('tab-jornada')" id="tab-btn-jornada">
+                        <i class="fas fa-route"></i> Jornada do Jogador
+                    </button>
                     <button class="tab-btn" onclick="showTab('tab-benchmarks')" id="tab-btn-benchmarks">
                         <i class="fas fa-cogs"></i> Benchmarks
                     </button>
@@ -819,6 +822,124 @@
                                     <tbody id="cluster-risco-engajamento-body"></tbody>
                                 </table>
                             </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Tab: Jornada do Jogador -->
+                <div id="tab-jornada" class="tab-content">
+                    <section class="jornada-section">
+                        <h3><i class="fas fa-route"></i> Acompanhar Jornada do Jogador <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Busque um Player ID específico para visualizar sua evolução histórica, mudanças de cluster e métricas ao longo do tempo.</span></span></h3>
+                        
+                        <!-- Busca -->
+                        <div class="jornada-busca">
+                            <div class="busca-input-group">
+                                <input type="text" id="jornada-pid" placeholder="Digite o Player ID..." class="busca-input">
+                                <button class="btn btn-primary" onclick="buscarJornadaJogador()">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                            </div>
+                            <div class="busca-opcoes">
+                                <label>Dias de histórico:</label>
+                                <select id="jornada-dias">
+                                    <option value="7">7 dias</option>
+                                    <option value="15">15 dias</option>
+                                    <option value="30" selected>30 dias</option>
+                                    <option value="60">60 dias</option>
+                                    <option value="90">90 dias</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Resultado -->
+                        <div id="jornada-resultado" class="jornada-resultado hidden">
+                            <!-- Header do Jogador -->
+                            <div class="jornada-header">
+                                <div class="jornada-player-info">
+                                    <div class="player-avatar">
+                                        <i class="fas fa-user-circle"></i>
+                                    </div>
+                                    <div class="player-dados">
+                                        <h4 id="jornada-pid-display">-</h4>
+                                        <span class="player-cluster" id="jornada-cluster-atual">-</span>
+                                        <span class="player-vip" id="jornada-vip">-</span>
+                                    </div>
+                                </div>
+                                <div class="jornada-resumo">
+                                    <div class="resumo-item">
+                                        <span class="resumo-label">Score Atual</span>
+                                        <span class="resumo-valor" id="jornada-score-atual">-</span>
+                                    </div>
+                                    <div class="resumo-item">
+                                        <span class="resumo-label">Mudanças de Cluster</span>
+                                        <span class="resumo-valor" id="jornada-mudancas">-</span>
+                                    </div>
+                                    <div class="resumo-item">
+                                        <span class="resumo-label">Dias no Cluster</span>
+                                        <span class="resumo-valor" id="jornada-dias-cluster">-</span>
+                                    </div>
+                                    <div class="resumo-item">
+                                        <span class="resumo-label">Tendência</span>
+                                        <span class="resumo-valor" id="jornada-tendencia">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Gráfico de Evolução -->
+                            <div class="jornada-chart-section">
+                                <h4><i class="fas fa-chart-line"></i> Evolução dos Scores <span class="info-tooltip"><span class="tooltip-text">Evolução dos scores do jogador ao longo do período selecionado.</span></span></h4>
+                                <div class="chart-card">
+                                    <canvas id="jornadaChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Timeline de Clusters -->
+                            <div class="jornada-timeline-section">
+                                <h4><i class="fas fa-history"></i> Histórico de Clusters <span class="info-tooltip"><span class="tooltip-text">Visualização da movimentação entre clusters ao longo do tempo.</span></span></h4>
+                                <div class="timeline-container" id="jornada-timeline">
+                                    <!-- Timeline será inserida via JS -->
+                                </div>
+                            </div>
+
+                            <!-- Métricas Detalhadas -->
+                            <div class="jornada-metricas">
+                                <h4><i class="fas fa-chart-bar"></i> Métricas de Compras <span class="info-tooltip"><span class="tooltip-text">Estatísticas detalhadas de compras do jogador no período.</span></span></h4>
+                                <div class="metricas-grid" id="jornada-metricas-compras">
+                                    <!-- Métricas serão inseridas via JS -->
+                                </div>
+                                
+                                <h4><i class="fas fa-gamepad"></i> Métricas de Engajamento <span class="info-tooltip"><span class="tooltip-text">Estatísticas detalhadas de engajamento do jogador no período.</span></span></h4>
+                                <div class="metricas-grid" id="jornada-metricas-engajamento">
+                                    <!-- Métricas serão inseridas via JS -->
+                                </div>
+                            </div>
+
+                            <!-- Tabela de Histórico -->
+                            <div class="jornada-historico">
+                                <h4><i class="fas fa-table"></i> Histórico Diário <span class="info-tooltip"><span class="tooltip-text">Registro detalhado de cada dia no período analisado.</span></span></h4>
+                                <div class="table-container">
+                                    <table class="data-table" id="jornada-historico-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Data</th>
+                                                <th>Cluster</th>
+                                                <th>Score Geral</th>
+                                                <th>Score Compras</th>
+                                                <th>Score Engajamento</th>
+                                                <th>Variação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="jornada-historico-body">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estado Vazio -->
+                        <div id="jornada-empty" class="jornada-empty">
+                            <i class="fas fa-search"></i>
+                            <p>Digite um Player ID para visualizar sua jornada</p>
                         </div>
                     </section>
                 </div>

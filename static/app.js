@@ -800,6 +800,7 @@ const playerTendenciaCache = {};
 
 /**
  * Busca a tendência do jogador (subiu, desceu, manteve, novo)
+ * Agora considera TODO o histórico (90 dias) para determinar se é novo
  */
 async function getPlayerTendencia(playerId) {
     // Verifica cache
@@ -808,7 +809,8 @@ async function getPlayerTendencia(playerId) {
     }
     
     try {
-        const response = await fetch(`/api/player/${playerId}/evolucao?dias=7`);
+        // Busca 90 dias de histórico para ter certeza se é novo ou não
+        const response = await fetch(`/api/player/${playerId}/evolucao?dias=90`);
         const data = await response.json();
         
         if (!data.success || !data.evolucao || !data.evolucao.evolucao) {
@@ -817,16 +819,22 @@ async function getPlayerTendencia(playerId) {
         }
         
         const evolucao = data.evolucao.evolucao;
+        const totalRegistros = data.evolucao.total_registros || evolucao.length;
         
-        // Se só tem 1 registro, é novo
-        if (evolucao.length <= 1) {
+        console.log(`[DEBUG] Jogador ${playerId}: ${totalRegistros} registros no histórico`);
+        
+        // Se só tem 1 registro em TODO o histórico, é novo
+        if (totalRegistros <= 1) {
+            console.log(`[DEBUG] Jogador ${playerId}: NOVO (apenas 1 registro)`);
             playerTendenciaCache[playerId] = 'novo';
             return 'novo';
         }
         
-        // Pega primeiro e último registro
-        const primeiro = evolucao[0];
-        const ultimo = evolucao[evolucao.length - 1];
+        // Pega primeiro e último registro para comparar
+        const primeiro = evolucao[0];  // Mais antigo
+        const ultimo = evolucao[evolucao.length - 1];  // Mais recente
+        
+        console.log(`[DEBUG] Jogador ${playerId}: Primeiro=${primeiro.categoria}, Último=${ultimo.categoria}`);
         
         // Determina a ordem dos clusters (do melhor para o pior)
         const ordemClusters = [
@@ -842,8 +850,12 @@ async function getPlayerTendencia(playerId) {
         let tendencia = 'manteve';
         if (idxUltimo < idxPrimeiro) {
             tendencia = 'subiu';
+            console.log(`[DEBUG] Jogador ${playerId}: SUBIU de ${primeiro.categoria} para ${ultimo.categoria}`);
         } else if (idxUltimo > idxPrimeiro) {
             tendencia = 'desceu';
+            console.log(`[DEBUG] Jogador ${playerId}: DESCEU de ${primeiro.categoria} para ${ultimo.categoria}`);
+        } else {
+            console.log(`[DEBUG] Jogador ${playerId}: MANTEVE em ${ultimo.categoria}`);
         }
         
         playerTendenciaCache[playerId] = tendencia;
@@ -923,34 +935,53 @@ function updateClusterTable(clusterId, jogadores) {
 }
 
 /**
+ * Carrega todos os jogadores do histórico (incluindo ausentes no dia atual)
+ * e atualiza as tabelas de clusters
+ */
+async function carregarClustersComHistorico() {
+    try {
+        console.log('[DEBUG] Carregando clusters com histórico acumulado...');
+        
+        // Busca todos os jogadores com seu registro mais recente (até 90 dias)
+        const response = await fetch('/api/players/ultimos?dias=90');
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('[DEBUG] Erro ao carregar histórico:', data.message);
+            return;
+        }
+        
+        console.log(`[DEBUG] Total de jogadores únicos: ${data.total}`);
+        
+        const jogadores = data.jogadores || [];
+        
+        // Filtra top 50 de cada categoria
+        const elite = jogadores.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const vipAtivo = jogadores.filter(j => j.categoria === '🏆 VIP Ativo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const estavel = jogadores.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const atencao = jogadores.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const riscoReceita = jogadores.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const riscoEngajamento = jogadores.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        
+        // Atualiza tabelas
+        updateClusterTable('elite', elite);
+        updateClusterTable('muito-bom', vipAtivo);
+        updateClusterTable('estavel', estavel);
+        updateClusterTable('baixo', atencao);
+        updateClusterTable('risco-receita', riscoReceita);
+        updateClusterTable('risco-engajamento', riscoEngajamento);
+        
+    } catch (error) {
+        console.error('[DEBUG] Erro ao carregar clusters:', error);
+    }
+}
+
+/**
  * Atualiza todas as tabelas de clusters
  */
 function updateClustersSection(dados) {
-    if (!dados) {
-        return;
-    }
-    
-    // Filtra top 50 de cada categoria (mapeando para IDs existentes no HTML)
-    const elite = dados.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const vipAtivo = dados.filter(j => j.categoria === '🏆 VIP Ativo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const bom = dados.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const estavel = dados.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const atencao = dados.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const riscoAlto = dados.filter(j => j.categoria === '🚨 Risco Alto').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const churn = dados.filter(j => j.categoria === '💎 Churn Iminente').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const oportunidade = dados.filter(j => j.categoria === '💰 Oportunidade').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const oportunidadeVip = dados.filter(j => j.categoria === '💰 Oportunidade VIP').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const potencial = dados.filter(j => j.categoria === '🎯 Potencial').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const riscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    const riscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-    
-    // Atualiza tabelas existentes
-    updateClusterTable('elite', elite);
-    updateClusterTable('muito-bom', vipAtivo);  // VIP Ativo vai para Muito Bom
-    updateClusterTable('estavel', estavel);
-    updateClusterTable('baixo', atencao);  // Atenção vai para Baixo
-    updateClusterTable('risco-receita', riscoReceita);
-    updateClusterTable('risco-engajamento', riscoEngajamento);
+    // Agora usa a função que carrega do histórico acumulado
+    carregarClustersComHistorico();
 }
 
 /**
@@ -1464,21 +1495,44 @@ async function deletarSnapshot(snapshotId) {
         return;
     }
     
+    console.log(`%c[DEBUG] Iniciando delete - snapshot ID: ${snapshotId}`, 'color: #3b82f6; font-weight: bold');
+    
     try {
-        const response = await fetch(`/api/historico/${snapshotId}`, {
-            method: 'DELETE'
+        const url = `/api/historico/${snapshotId}`;
+        console.log(`[DEBUG] URL: ${url}`);
+        
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json'
+            }
         });
         
-        const data = await response.json();
+        console.log(`[DEBUG] Response status: ${response.status} ${response.statusText}`);
+        console.log(`[DEBUG] Response headers:`, [...response.headers.entries()]);
         
-        if (data.success) {
+        let data;
+        try {
+            data = await response.json();
+            console.log(`[DEBUG] Response data:`, data);
+        } catch (jsonError) {
+            console.error(`[DEBUG] Erro ao parsear JSON:`, jsonError);
+            const text = await response.text();
+            console.log(`[DEBUG] Response text:`, text);
+            throw new Error('Resposta inválida do servidor');
+        }
+        
+        if (response.ok && data.success) {
+            console.log(`%c[DEBUG] Delete bem-sucedido!`, 'color: #10b981; font-weight: bold');
             showToast('Registro excluído com sucesso!', 'success');
             carregarHistorico();
         } else {
-            showToast('Erro ao excluir: ' + data.message, 'error');
+            console.error(`%c[DEBUG] Erro na resposta:`, 'color: #ef4444;', data);
+            showToast('Erro ao excluir: ' + (data.message || 'Erro desconhecido'), 'error');
         }
     } catch (error) {
-        showToast('Erro ao excluir registro', 'error');
+        console.error(`%c[DEBUG] Erro catch:`, 'color: #ef4444; font-weight: bold', error);
+        showToast('Erro ao excluir registro: ' + error.message, 'error');
     }
 }
 
@@ -1647,7 +1701,7 @@ function atualizarTabelaHistorico(historico) {
         html += `
             <tr>
                 <td>#${dia.id}</td>
-                <td>${dia.data ? new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                <td>${formatarDataCompleta(dia.data)}</td>
                 <td>${dia.total_jogadores.toLocaleString()}</td>
                 <td>${dia.percentual_ativos.toFixed(1)}%</td>
                 <td>${dia.media_score_geral.toFixed(1)}</td>
@@ -1836,3 +1890,409 @@ function showToast(message, type = 'info') {
 function renderResumoExecutivo() {
     carregarHistorico();
 }
+
+
+/**
+ * ============================================
+ * JORNADA DO JOGADOR - Acompanhamento Individual
+ * ============================================
+ */
+
+let jornadaChart = null;
+
+/**
+ * Busca a jornada de um jogador específico
+ */
+async function buscarJornadaJogador() {
+    const pid = document.getElementById('jornada-pid').value.trim();
+    const dias = document.getElementById('jornada-dias').value;
+    
+    if (!pid) {
+        showToast('Digite um Player ID', 'error');
+        return;
+    }
+    
+    // Mostra loading
+    const resultadoDiv = document.getElementById('jornada-resultado');
+    const emptyDiv = document.getElementById('jornada-empty');
+    
+    resultadoDiv.classList.add('hidden');
+    emptyDiv.innerHTML = '<div class="spinner"></div><p>Buscando dados...</p>';
+    
+    try {
+        const response = await fetch(`/api/player/${pid}/evolucao?dias=${dias}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            emptyDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+                <p>${data.message || 'Jogador não encontrado no histórico'}</p>
+                <p class="subtext">Tente fazer upload de dados mais recentes ou verifique o Player ID</p>
+            `;
+            return;
+        }
+        
+        // Renderiza os dados
+        renderizarJornada(data.evolucao);
+        
+        // Mostra resultado
+        emptyDiv.classList.add('hidden');
+        resultadoDiv.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Erro ao buscar jornada:', error);
+        emptyDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+            <p>Erro ao buscar dados</p>
+            <p class="subtext">${error.message}</p>
+        `;
+    }
+}
+
+/**
+ * Renderiza a jornada do jogador na interface
+ */
+function renderizarJornada(dados) {
+    // Header
+    document.getElementById('jornada-pid-display').textContent = dados.player_id;
+    document.getElementById('jornada-cluster-atual').textContent = dados.cluster_atual;
+    document.getElementById('jornada-cluster-atual').className = `player-cluster ${getClusterClass(dados.cluster_atual)}`;
+    
+    // Resumo
+    const ultimoRegistro = dados.evolucao[dados.evolucao.length - 1];
+    document.getElementById('jornada-score-atual').textContent = ultimoRegistro.score_geral.toFixed(1);
+    document.getElementById('jornada-mudancas').textContent = dados.resumo.mudancas_cluster;
+    document.getElementById('jornada-dias-cluster').textContent = `${dados.dias_no_cluster_atual} dias`;
+    
+    // Tendência
+    const tendencia = dados.resumo.variacao_total_geral;
+    const tendenciaEl = document.getElementById('jornada-tendencia');
+    if (tendencia > 5) {
+        tendenciaEl.innerHTML = '<i class="fas fa-arrow-up" style="color: #10b981;"></i> Crescente';
+    } else if (tendencia < -5) {
+        tendenciaEl.innerHTML = '<i class="fas fa-arrow-down" style="color: #ef4444;"></i> Decrescente';
+    } else {
+        tendenciaEl.innerHTML = '<i class="fas fa-minus" style="color: #64748b;"></i> Estável';
+    }
+    
+    // Gráfico
+    renderizarGraficoJornada(dados.evolucao);
+    
+    // Timeline
+    renderizarTimeline(dados.evolucao);
+    
+    // Métricas
+    renderizarMetricas(dados);
+    
+    // Tabela
+    renderizarTabelaHistorico(dados.evolucao, dados.variacoes);
+}
+
+/**
+ * Retorna a classe CSS para um cluster
+ */
+function getClusterClass(cluster) {
+    const map = {
+        '⭐ Elite': 'cluster-elite',
+        '🏆 VIP Ativo': 'cluster-vip-ativo',
+        '📈 Bom': 'cluster-bom',
+        '📊 Estável': 'cluster-estavel',
+        '⚠️ Atenção': 'cluster-atencao',
+        '🚨 Risco Alto': 'cluster-risco',
+        '🚨 Risco: Queda Receita': 'cluster-risco-receita',
+        '🚨 Risco: Queda Engajamento': 'cluster-risco-engajamento',
+        '💎 Churn Iminente': 'cluster-churn',
+        '💰 Oportunidade VIP': 'cluster-oportunidade-vip',
+        '💰 Oportunidade': 'cluster-oportunidade',
+        '🎯 Potencial': 'cluster-potencial'
+    };
+    return map[cluster] || 'cluster-default';
+}
+
+/**
+ * Renderiza o gráfico de evolução
+ */
+function renderizarGraficoJornada(evolucao) {
+    const ctx = document.getElementById('jornadaChart');
+    if (!ctx) return;
+    
+    if (jornadaChart) {
+        jornadaChart.destroy();
+    }
+    
+    const labels = evolucao.map(e => formatarData(e.data));
+    
+    const scoresGeral = evolucao.map(e => e.score_geral);
+    const scoresCompras = evolucao.map(e => e.score_compras);
+    const scoresEngajamento = evolucao.map(e => e.score_engajamento);
+    
+    jornadaChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Score Geral',
+                    data: scoresGeral,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                },
+                {
+                    label: 'Score Compras',
+                    data: scoresCompras,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Score Engajamento',
+                    data: scoresEngajamento,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.toFixed(1)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    grid: {
+                        color: '#334155'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Renderiza a timeline de clusters
+ */
+function renderizarTimeline(evolucao) {
+    const container = document.getElementById('jornada-timeline');
+    if (!container) return;
+    
+    // Agrupa por cluster consecutivo
+    const grupos = [];
+    let clusterAtual = null;
+    let grupoAtual = null;
+    
+    evolucao.forEach((reg, idx) => {
+        if (reg.categoria !== clusterAtual) {
+            if (grupoAtual) {
+                grupoAtual.dataFim = reg.data;
+            }
+            clusterAtual = reg.categoria;
+            grupoAtual = {
+                cluster: reg.categoria,
+                dataInicio: reg.data,
+                dataFim: reg.data,
+                dias: 1
+            };
+            grupos.push(grupoAtual);
+        } else {
+            grupoAtual.dias++;
+            grupoAtual.dataFim = reg.data;
+        }
+    });
+    
+    // Gera HTML
+    let html = '<div class="timeline-line">';
+    
+    grupos.forEach((grupo, idx) => {
+        const clusterClass = getClusterClass(grupo.cluster);
+        const isFirst = idx === 0;
+        const isLast = idx === grupos.length - 1;
+        
+        html += `
+            <div class="timeline-item ${clusterClass}">
+                <div class="timeline-dot ${isFirst ? 'first' : ''} ${isLast ? 'last' : ''}"></div>
+                <div class="timeline-content">
+                    <span class="timeline-cluster">${grupo.cluster}</span>
+                    <span class="timeline-period">${formatarData(grupo.dataInicio)} - ${formatarData(grupo.dataFim)}</span>
+                    <span class="timeline-dias">${grupo.dias} dia${grupo.dias > 1 ? 's' : ''}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+/**
+ * Formata data para exibição (corrigido para evitar problemas de timezone)
+ * Recebe data no formato YYYY-MM-DD e retorna DD/MM/YYYY
+ */
+function formatarData(dataStr) {
+    if (!dataStr) return '-';
+    // Extrai componentes diretamente do string para evitar conversão de timezone
+    // Formato esperado: YYYY-MM-DD
+    const [ano, mes, dia] = dataStr.split('-');
+    if (ano && mes && dia) {
+        return `${dia}/${mes}`;
+    }
+    return dataStr;
+}
+
+/**
+ * Formata data completa para exibição (DD/MM/YYYY)
+ */
+function formatarDataCompleta(dataStr) {
+    if (!dataStr) return '-';
+    const [ano, mes, dia] = dataStr.split('-');
+    if (ano && mes && dia) {
+        return `${dia}/${mes}/${ano}`;
+    }
+    return dataStr;
+}
+
+/**
+ * Renderiza as métricas de compras e engajamento
+ */
+function renderizarMetricas(dados) {
+    // Métricas de compras
+    const metricasCompras = dados.metricas_compras;
+    const comprasEl = document.getElementById('jornada-metricas-compras');
+    comprasEl.innerHTML = `
+        <div class="metrica-card">
+            <span class="metrica-label">Maior Score</span>
+            <span class="metrica-valor" style="color: #10b981;">${metricasCompras.maior_score}</span>
+        </div>
+        <div class="metrica-card">
+            <span class="metrica-label">Menor Score</span>
+            <span class="metrica-valor" style="color: #ef4444;">${metricasCompras.menor_score}</span>
+        </div>
+        <div class="metrica-card">
+            <span class="metrica-label">Média</span>
+            <span class="metrica-valor" style="color: #8b5cf6;">${metricasCompras.media}</span>
+        </div>
+        <div class="metrica-card">
+            <span class="metrica-label">Tendência</span>
+            <span class="metrica-valor ${metricasCompras.tendencia === 'crescente' ? 'tendencia-up' : 'tendencia-down'}">
+                <i class="fas fa-${metricasCompras.tendencia === 'crescente' ? 'arrow-up' : 'arrow-down'}"></i>
+                ${metricasCompras.tendencia === 'crescente' ? 'Crescente' : 'Decrescente'}
+            </span>
+        </div>
+    `;
+    
+    // Métricas de engajamento
+    const metricasEngajamento = dados.metricas_engajamento;
+    const engajamentoEl = document.getElementById('jornada-metricas-engajamento');
+    engajamentoEl.innerHTML = `
+        <div class="metrica-card">
+            <span class="metrica-label">Maior Score</span>
+            <span class="metrica-valor" style="color: #10b981;">${metricasEngajamento.maior_score}</span>
+        </div>
+        <div class="metrica-card">
+            <span class="metrica-label">Menor Score</span>
+            <span class="metrica-valor" style="color: #ef4444;">${metricasEngajamento.menor_score}</span>
+        </div>
+        <div class="metrica-card">
+            <span class="metrica-label">Média</span>
+            <span class="metrica-valor" style="color: #8b5cf6;">${metricasEngajamento.media}</span>
+        </div>
+        <div class="metrica-card">
+            <span class="metrica-label">Tendência</span>
+            <span class="metrica-valor ${metricasEngajamento.tendencia === 'crescente' ? 'tendencia-up' : 'tendencia-down'}">
+                <i class="fas fa-${metricasEngajamento.tendencia === 'crescente' ? 'arrow-up' : 'arrow-down'}"></i>
+                ${metricasEngajamento.tendencia === 'crescente' ? 'Crescente' : 'Decrescente'}
+            </span>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza a tabela de histórico
+ */
+function renderizarTabelaHistorico(evolucao, variacoes) {
+    const tbody = document.getElementById('jornada-historico-body');
+    if (!tbody) return;
+    
+    // Cria um mapa de variações por data
+    const varMap = {};
+    variacoes.forEach(v => {
+        varMap[v.data] = v;
+    });
+    
+    // Gera linhas (ordem reversa - mais recente primeiro)
+    const html = [...evolucao].reverse().map(reg => {
+        const variacao = varMap[reg.data];
+        let varHtml = '-';
+        
+        if (variacao) {
+            const varClass = variacao.variacao_geral > 0 ? 'var-up' : (variacao.variacao_geral < 0 ? 'var-down' : 'var-stable');
+            const varIcon = variacao.variacao_geral > 0 ? '▲' : (variacao.variacao_geral < 0 ? '▼' : '~');
+            varHtml = `<span class="${varClass}">${varIcon} ${Math.abs(variacao.variacao_geral).toFixed(1)}</span>`;
+        }
+        
+        return `
+            <tr>
+                <td>${formatarData(reg.data)}</td>
+                <td><span class="cluster-badge-timeline ${getClusterClass(reg.categoria)}">${reg.categoria}</span></td>
+                <td><strong>${reg.score_geral.toFixed(1)}</strong></td>
+                <td>${reg.score_compras.toFixed(1)}</td>
+                <td>${reg.score_engajamento.toFixed(1)}</td>
+                <td>${varHtml}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    tbody.innerHTML = html;
+}
+
+/**
+ * Busca jornada ao pressionar Enter no input
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('jornada-pid');
+    if (input) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                buscarJornadaJogador();
+            }
+        });
+    }
+});

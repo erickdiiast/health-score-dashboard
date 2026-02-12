@@ -39,7 +39,7 @@ BASE_DIR = get_base_dir()
 IS_PYTHONANYWHERE = 'PYTHONANYWHERE_DOMAIN' in os.environ
 IS_FROZEN = getattr(sys, 'frozen', False)
 
-app = FastAPI(title="Health Score Dashboard", version="2.2.2")
+app = FastAPI(title="Health Score Dashboard", version="2.8.0")
 
 # Configuração do banco de dados SQLite
 DB_PATH = os.path.join(BASE_DIR, "historico.db")
@@ -143,6 +143,28 @@ def init_db():
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_player_snapshots_categoria 
         ON player_snapshots(categoria)
+    ''')
+    
+    # Índice UNIQUE para evitar duplicatas (um registro por jogador por dia)
+    # Primeiro, remove duplicatas existentes (mantém o registro com maior id = mais recente)
+    try:
+        cursor.execute('''
+            DELETE FROM player_snapshots 
+            WHERE id NOT IN (
+                SELECT MAX(id) 
+                FROM player_snapshots 
+                GROUP BY player_id, data
+            )
+        ''')
+        deleted = cursor.rowcount
+        if deleted > 0:
+            print(f"[INFO] {deleted} registros duplicados removidos de player_snapshots")
+    except Exception as e:
+        print(f"[WARN] Erro ao remover duplicatas: {e}")
+    
+    cursor.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_player_snapshots_unique 
+        ON player_snapshots(player_id, data)
     ''')
     
     conn.commit()
@@ -754,14 +776,6 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
         df['vip_cor'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['cor'])
         df['vip_icone'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['icone'])
     
-    # Salva snapshots individuais de cada jogador para acompanhamento de evolução
-    try:
-        data_hoje = datetime.now().strftime("%Y-%m-%d")
-        total_salvos = salvar_player_snapshots(df, data_hoje)
-        print(f"[INFO] {total_salvos} jogadores salvos para acompanhamento individual")
-    except Exception as e:
-        print(f"[WARN] Erro ao salvar player_snapshots: {e}")
-    
     return df, params
 
 
@@ -884,9 +898,10 @@ def salvar_player_snapshots(df: pd.DataFrame, data_snapshot: str = None, campanh
             campanha_nome
         ))
     
-    # Insere em lote para performance
+    # Insere em lote usando INSERT OR REPLACE para evitar duplicatas
+    # Se já existir registro para este player_id + data, atualiza os dados
     cursor.executemany('''
-        INSERT INTO player_snapshots (
+        INSERT OR REPLACE INTO player_snapshots (
             player_id, data, data_timestamp,
             score_geral, score_engajamento, score_compras, score_login,
             qtd_compras_7d, ticket_medio_7d,
@@ -910,6 +925,9 @@ def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
+    # Log para debug
+    print(f"[DEBUG] Buscando evolução do jogador {player_id} nos últimos {dias} dias")
+    
     cursor.execute('''
         SELECT * FROM player_snapshots 
         WHERE player_id = ? 
@@ -918,6 +936,10 @@ def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
     '''.format(dias), (player_id,))
     
     rows = cursor.fetchall()
+    
+    print(f"[DEBUG] Encontrados {len(rows)} registros para o jogador {player_id}")
+    for row in rows:
+        print(f"[DEBUG]   - Data: {row['data']}, Categoria: {row['categoria']}")
     
     if not rows:
         conn.close()
@@ -1150,31 +1172,60 @@ def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> Lis
 
 def deletar_snapshot(snapshot_id: int = None, data: str = None) -> bool:
     """Deleta um snapshot por ID ou por data"""
+    print(f"[DEBUG] deletar_snapshot chamado - snapshot_id={snapshot_id}, data={data}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     try:
+        total_afetado = 0
+        
         if snapshot_id:
+            print(f"[DEBUG] Verificando se snapshot {snapshot_id} existe...")
+            cursor.execute('SELECT id FROM snapshots WHERE id = ?', (snapshot_id,))
+            existe = cursor.fetchone()
+            print(f"[DEBUG] Snapshot existe: {existe is not None}")
+            
+            if not existe:
+                conn.close()
+                return False
+            
             # Deleta clusters primeiro (foreign key)
+            print(f"[DEBUG] Deletando clusters do snapshot {snapshot_id}...")
             cursor.execute('DELETE FROM clusters_dia WHERE snapshot_id = ?', (snapshot_id,))
+            clusters_deletados = cursor.rowcount
+            print(f"[DEBUG] Clusters deletados: {clusters_deletados}")
+            total_afetado += clusters_deletados
+            
             # Deleta snapshot
+            print(f"[DEBUG] Deletando snapshot {snapshot_id}...")
             cursor.execute('DELETE FROM snapshots WHERE id = ?', (snapshot_id,))
+            snapshots_deletados = cursor.rowcount
+            print(f"[DEBUG] Snapshots deletados: {snapshots_deletados}")
+            total_afetado += snapshots_deletados
+            
         elif data:
             # Busca IDs dos snapshots da data
             cursor.execute('SELECT id FROM snapshots WHERE data = ?', (data,))
             ids = cursor.fetchall()
+            print(f"[DEBUG] Encontrados {len(ids)} snapshots para data {data}")
             for (sid,) in ids:
                 cursor.execute('DELETE FROM clusters_dia WHERE snapshot_id = ?', (sid,))
+                total_afetado += cursor.rowcount
             cursor.execute('DELETE FROM snapshots WHERE data = ?', (data,))
+            total_afetado += cursor.rowcount
         else:
+            print(f"[DEBUG] Nenhum ID ou data fornecido")
             conn.close()
             return False
         
         conn.commit()
         conn.close()
-        return cursor.rowcount > 0
+        print(f"[DEBUG] Total registros afetados: {total_afetado}")
+        return total_afetado > 0
     except Exception as e:
-        print(f"Erro ao deletar snapshot: {e}")
+        print(f"[ERROR] Erro ao deletar snapshot: {e}")
+        import traceback
+        traceback.print_exc()
         conn.close()
         return False
 
@@ -1431,7 +1482,7 @@ async def upload_file(file: UploadFile = File(...)):
         else:
             df = pd.read_excel(io.BytesIO(contents))
         
-        # Processa dados com parâmetros dinâmicos
+        # Processa dados com parâmetros dinâmicos (sem salvar no histórico ainda)
         df_processado, params = processar_dados_jogadores(df)
         
         # Gera resumo
@@ -1696,16 +1747,16 @@ async def export_excel():
 
 @app.post("/api/historico/salvar")
 async def salvar_historico(request: Dict[str, Any]):
-    """Salva o estado atual como snapshot do dia"""
+    """Salva o estado atual como snapshot do dia e dados individuais dos jogadores"""
     if not cached_data:
         raise HTTPException(status_code=404, detail="Nenhum dado processado. Faça upload primeiro.")
     
     resumo = cached_data['resumo']
+    df = cached_data['df']  # DataFrame completo com dados dos jogadores
     filtros = request.get('filtros', {})
     data_custom = request.get('data')  # Data no formato YYYY-MM-DD
     
     # Usa a data exatamente como recebida do frontend
-    # O input date do HTML já retorna YYYY-MM-DD no timezone local do usuário
     if data_custom and isinstance(data_custom, str) and len(data_custom) == 10:
         data_usar = data_custom  # Usa diretamente: YYYY-MM-DD
     else:
@@ -1714,7 +1765,16 @@ async def salvar_historico(request: Dict[str, Any]):
     print(f"[DEBUG] Data recebida do frontend: {data_custom}")
     print(f"[DEBUG] Data usada para salvar: {data_usar}")
     
+    # Salva snapshot geral
     snapshot_id = salvar_snapshot(resumo, filtros, data_usar)
+    
+    # Salva dados individuais de cada jogador com a mesma data
+    try:
+        total_salvos = salvar_player_snapshots(df, data_usar)
+        print(f"[INFO] {total_salvos} jogadores salvos para acompanhamento individual (data: {data_usar})")
+    except Exception as e:
+        print(f"[WARN] Erro ao salvar player_snapshots: {e}")
+        # Não falha o snapshot se der erro ao salvar jogadores individuais
     
     return {
         "success": True,
@@ -1727,15 +1787,25 @@ async def salvar_historico(request: Dict[str, Any]):
 @app.delete("/api/historico/{snapshot_id}")
 async def deletar_historico(snapshot_id: int):
     """Deleta um snapshot específico pelo ID"""
-    sucesso = deletar_snapshot(snapshot_id=snapshot_id)
+    print(f"[DEBUG] DELETE request recebido - snapshot_id: {snapshot_id}")
     
-    if sucesso:
-        return {
-            "success": True,
-            "message": f"Snapshot {snapshot_id} deletado com sucesso"
-        }
-    else:
-        raise HTTPException(status_code=404, detail="Snapshot não encontrado")
+    try:
+        sucesso = deletar_snapshot(snapshot_id=snapshot_id)
+        
+        if sucesso:
+            print(f"[DEBUG] Snapshot {snapshot_id} deletado com sucesso")
+            return {
+                "success": True,
+                "message": f"Snapshot {snapshot_id} deletado com sucesso"
+            }
+        else:
+            print(f"[DEBUG] Snapshot {snapshot_id} não encontrado ou erro ao deletar")
+            raise HTTPException(status_code=404, detail="Snapshot não encontrado")
+    except Exception as e:
+        print(f"[ERROR] Erro no endpoint delete: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 
 @app.delete("/api/historico/data/{data}")
@@ -1841,6 +1911,93 @@ async def get_resumo_executivo(
 
 
 # ========== ENDPOINTS DE ACOMPANHAMENTO INDIVIDUAL ==========
+
+def get_ultimo_registro_todos_jogadores(dias: int = 90) -> List[Dict]:
+    """
+    Retorna o registro mais recente de TODOS os jogadores que já apareceram no histórico.
+    Mesmo que o jogador não tenha dados no dia atual, retorna seu último registro.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Busca o registro mais recente de cada jogador
+    cursor.execute('''
+        SELECT 
+            player_id,
+            data,
+            score_geral,
+            score_engajamento,
+            score_compras,
+            score_login,
+            categoria,
+            nivel_vip,
+            regiao,
+            qtd_compras_7d,
+            ticket_medio_7d,
+            qtd_torneios_3d,
+            qtd_maratonas_3d,
+            qtd_missoes_3d,
+            qtd_promos_3d,
+            qtd_logins_3d
+        FROM player_snapshots
+        WHERE data >= date('now', '-{} days')
+        ORDER BY player_id, data DESC
+    '''.format(dias))
+    
+    rows = cursor.fetchall()
+    
+    # Agrupa por player_id e pega apenas o mais recente de cada um
+    jogadores_unicos = {}
+    for row in rows:
+        pid = row['player_id']
+        if pid not in jogadores_unicos:
+            jogadores_unicos[pid] = {
+                'player_id': pid,
+                'data': row['data'],
+                'score_geral': row['score_geral'],
+                'score_engajamento': row['score_engajamento'],
+                'score_compras': row['score_compras'],
+                'score_login': row['score_login'],
+                'categoria': row['categoria'],
+                'nivel_vip': row['nivel_vip'],
+                'regiao': row['regiao'],
+                'qtd_compras_7d': row['qtd_compras_7d'],
+                'ticket_medio_7d': row['ticket_medio_7d'],
+                'qtd_torneios_3d': row['qtd_torneios_3d'],
+                'qtd_maratonas_3d': row['qtd_maratonas_3d'],
+                'qtd_missoes_3d': row['qtd_missoes_3d'],
+                'qtd_promos_3d': row['qtd_promos_3d'],
+                'qtd_logins_3d': row['qtd_logins_3d']
+            }
+    
+    conn.close()
+    return list(jogadores_unicos.values())
+
+
+@app.get("/api/players/ultimos")
+async def get_players_ultimos(
+    dias: int = Query(90, description="Dias para trás no histórico")
+):
+    """
+    Retorna o último registro de todos os jogadores que já apareceram.
+    Útil para manter a lista completa mesmo quando jogadores estão ausentes.
+    """
+    try:
+        jogadores = get_ultimo_registro_todos_jogadores(dias)
+        
+        return {
+            "success": True,
+            "total": len(jogadores),
+            "dias_considerados": dias,
+            "jogadores": jogadores
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Erro ao buscar jogadores: {str(e)}"
+        }
+
 
 @app.get("/api/player/{player_id}/evolucao")
 async def get_player_evolucao(
