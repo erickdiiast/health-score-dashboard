@@ -1921,55 +1921,60 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90) -> List[Dict]:
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Busca o registro mais recente de cada jogador
+    # Busca o registro mais recente de cada jogador usando GROUP BY e MAX(data)
+    # Isso garante que pegamos o registro com a data mais recente para cada player_id
     cursor.execute('''
         SELECT 
-            player_id,
-            data,
-            score_geral,
-            score_engajamento,
-            score_compras,
-            score_login,
-            categoria,
-            nivel_vip,
-            regiao,
-            qtd_compras_7d,
-            ticket_medio_7d,
-            qtd_torneios_3d,
-            qtd_maratonas_3d,
-            qtd_missoes_3d,
-            qtd_promos_3d,
-            qtd_logins_3d
-        FROM player_snapshots
-        WHERE data >= date('now', '-{} days')
-        ORDER BY player_id, data DESC
-    '''.format(dias))
+            ps.player_id,
+            ps.data,
+            ps.score_geral,
+            ps.score_engajamento,
+            ps.score_compras,
+            ps.score_login,
+            ps.categoria,
+            ps.nivel_vip,
+            ps.regiao,
+            ps.qtd_compras_7d,
+            ps.ticket_medio_7d,
+            ps.qtd_torneios_3d,
+            ps.qtd_maratonas_3d,
+            ps.qtd_missoes_3d,
+            ps.qtd_promos_3d,
+            ps.qtd_logins_3d
+        FROM player_snapshots ps
+        INNER JOIN (
+            SELECT player_id, MAX(data) as max_data
+            FROM player_snapshots
+            WHERE data >= date('now', '-{} days')
+            GROUP BY player_id
+        ) latest ON ps.player_id = latest.player_id AND ps.data = latest.max_data
+        WHERE ps.data >= date('now', '-{} days')
+    '''.format(dias, dias))
     
     rows = cursor.fetchall()
     
-    # Agrupa por player_id e pega apenas o mais recente de cada um
+    # Converte para lista de dicionários
     jogadores_unicos = {}
     for row in rows:
         pid = row['player_id']
-        if pid not in jogadores_unicos:
-            jogadores_unicos[pid] = {
-                'player_id': pid,
-                'data': row['data'],
-                'score_geral': row['score_geral'],
-                'score_engajamento': row['score_engajamento'],
-                'score_compras': row['score_compras'],
-                'score_login': row['score_login'],
-                'categoria': row['categoria'],
-                'nivel_vip': row['nivel_vip'],
-                'regiao': row['regiao'],
-                'qtd_compras_7d': row['qtd_compras_7d'],
-                'ticket_medio_7d': row['ticket_medio_7d'],
-                'qtd_torneios_3d': row['qtd_torneios_3d'],
-                'qtd_maratonas_3d': row['qtd_maratonas_3d'],
-                'qtd_missoes_3d': row['qtd_missoes_3d'],
-                'qtd_promos_3d': row['qtd_promos_3d'],
-                'qtd_logins_3d': row['qtd_logins_3d']
-            }
+        jogadores_unicos[pid] = {
+            'player_id': pid,
+            'data': row['data'],
+            'score_geral': row['score_geral'],
+            'score_engajamento': row['score_engajamento'],
+            'score_compras': row['score_compras'],
+            'score_login': row['score_login'],
+            'categoria': row['categoria'],
+            'nivel_vip': row['nivel_vip'],
+            'regiao': row['regiao'],
+            'qtd_compras_7d': row['qtd_compras_7d'],
+            'ticket_medio_7d': row['ticket_medio_7d'],
+            'qtd_torneios_3d': row['qtd_torneios_3d'],
+            'qtd_maratonas_3d': row['qtd_maratonas_3d'],
+            'qtd_missoes_3d': row['qtd_missoes_3d'],
+            'qtd_promos_3d': row['qtd_promos_3d'],
+            'qtd_logins_3d': row['qtd_logins_3d']
+        }
     
     conn.close()
     return list(jogadores_unicos.values())
