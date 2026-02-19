@@ -1183,16 +1183,20 @@ def deletar_snapshot(snapshot_id: int = None, data: str = None) -> bool:
     
     try:
         total_afetado = 0
+        data_para_deletar = None
         
         if snapshot_id:
             print(f"[DEBUG] Verificando se snapshot {snapshot_id} existe...")
-            cursor.execute('SELECT id FROM snapshots WHERE id = ?', (snapshot_id,))
-            existe = cursor.fetchone()
-            print(f"[DEBUG] Snapshot existe: {existe is not None}")
+            cursor.execute('SELECT id, data FROM snapshots WHERE id = ?', (snapshot_id,))
+            resultado = cursor.fetchone()
+            print(f"[DEBUG] Snapshot existe: {resultado is not None}")
             
-            if not existe:
+            if not resultado:
                 conn.close()
                 return False
+            
+            # Guarda a data para deletar player_snapshots depois
+            data_para_deletar = resultado[1]
             
             # Deleta clusters primeiro (foreign key)
             print(f"[DEBUG] Deletando clusters do snapshot {snapshot_id}...")
@@ -1209,6 +1213,7 @@ def deletar_snapshot(snapshot_id: int = None, data: str = None) -> bool:
             total_afetado += snapshots_deletados
             
         elif data:
+            data_para_deletar = data
             # Busca IDs dos snapshots da data
             cursor.execute('SELECT id FROM snapshots WHERE data = ?', (data,))
             ids = cursor.fetchall()
@@ -1222,6 +1227,15 @@ def deletar_snapshot(snapshot_id: int = None, data: str = None) -> bool:
             print(f"[DEBUG] Nenhum ID ou data fornecido")
             conn.close()
             return False
+        
+        # IMPORTANTE: Também deleta os dados individuais dos jogadores (player_snapshots)
+        # para a mesma data
+        if data_para_deletar:
+            print(f"[DEBUG] Deletando player_snapshots para data {data_para_deletar}...")
+            cursor.execute('DELETE FROM player_snapshots WHERE data = ?', (data_para_deletar,))
+            players_deletados = cursor.rowcount
+            print(f"[DEBUG] Player snapshots deletados: {players_deletados}")
+            total_afetado += players_deletados
         
         conn.commit()
         conn.close()
