@@ -2225,4 +2225,10 @@ if __name__ == "__main__":
     print("  Pressione CTRL+C para parar")
     print("=" * 60)
     print()
-    uvicorn.run(app, host=host, port=port)
+    
+    # No modo executável (PyInstaller onefile), desativa config de logging padrão
+    # para evitar erro com stdout/stderr None
+    if IS_FROZEN:
+        uvicorn.run(app, host=host, port=port, log_config=None)
+    else:
+        uvicorn.run(app, host=host, port=port)
