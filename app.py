@@ -26,8 +26,13 @@ def get_base_dir():
     """Retorna o diretório base do aplicativo"""
     if getattr(sys, 'frozen', False):
         # Rodando como executável PyInstaller
-        # sys.executable é o caminho do .exe
-        return os.path.dirname(sys.executable)
+        # No modo onefile, sys._MEIPASS aponta para a pasta temporária
+        # onde os arquivos são extraídos
+        if hasattr(sys, '_MEIPASS'):
+            return sys._MEIPASS
+        else:
+            # Fallback para o diretório do executável
+            return os.path.dirname(sys.executable)
     elif 'PYTHONANYWHERE_DOMAIN' in os.environ:
         # PythonAnywhere
         return os.path.dirname(os.path.abspath(__file__))
