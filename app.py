@@ -2001,12 +2001,27 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nive
     
     # Adiciona filtros se fornecidos
     params = []
+    filtros_where = []
+    
     if regiao and regiao != 'all':
-        query = query.replace('WHERE ps.data >= date', "WHERE ps.regiao = ? AND ps.data >= date")
+        filtros_where.append("ps.regiao = ?")
         params.append(regiao)
-    if nivel_vip and nivel_vip != 'all' and str(nivel_vip).isdigit():
-        query = query.replace('WHERE ps.data >= date', "WHERE ps.nivel_vip = ? AND ps.data >= date")
-        params.append(int(nivel_vip))
+    
+    if nivel_vip and nivel_vip != 'all':
+        try:
+            vip_int = int(nivel_vip)
+            filtros_where.append("ps.nivel_vip = ?")
+            params.append(vip_int)
+        except (ValueError, TypeError):
+            pass  # Ignora se não for um número válido
+    
+    # Adiciona os filtros à query
+    if filtros_where:
+        # Substitui o WHERE inicial pelos filtros + condição original de data
+        query = query.replace(
+            "WHERE ps.data >= date('now',",
+            "WHERE " + " AND ".join(filtros_where) + " AND ps.data >= date('now',"
+        )
     
     if params:
         cursor.execute(query, tuple(params))
