@@ -633,29 +633,43 @@ class HealthScoreCalculator:
         if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
             return "🎯 Potencial"
         
-        # Categorização por score geral (mais granular)
-        if score_geral >= 90:
-            return "⭐ Elite"
-        elif score_geral >= 80:
-            return "🏆 VIP Ativo"
-        elif score_geral >= 65:
-            return "📈 Bom"
-        elif score_geral >= 50:
-            return "📊 Estável"
-        elif score_geral >= 40:
-            return "⚠️ Atenção"
-        elif score_geral >= 25:
-            # Risco moderado - identificar causa
-            if score_compras < 25 and score_engajamento < 35:
-                return "🚨 Risco Alto"
-            elif score_compras < score_engajamento:
-                return "🚨 Risco: Queda Receita"
+        # Categorização por score geral (alinhada com os clusters do frontend)
+        # Hierarquia clara de 9 categorias principais + 3 de oportunidade
+        
+        # 1. OPORTUNIDADES (alto engajamento + baixas compras) - verifica primeiro
+        if score_engajamento >= 60 and score_compras < 40:
+            if nivel_vip >= 3:
+                return "💰 Oportunidade VIP"
             else:
-                return "🚨 Risco: Queda Engajamento"
+                return "💰 Oportunidade"
+        
+        # 2. POTENCIAL (bom engajamento, compras médias)
+        if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
+            return "🎯 Potencial"
+        
+        # 3. Categorização principal por Score Geral
+        if score_geral >= 80:
+            return "⭐ Elite"  # Score >= 80
+        elif score_geral >= 65:
+            return "🏆 VIP Ativo"  # Score 65-79
+        elif score_geral >= 50:
+            return "📈 Bom"  # Score 50-64
+        elif score_geral >= 40:
+            return "📊 Estável"  # Score 40-49
+        elif score_geral >= 25:
+            return "⚠️ Atenção"  # Score 25-39
+        elif score_geral >= 15:
+            # Risco: Score 15-24
+            if score_compras < 25 and score_engajamento < 35:
+                return "🚨 Risco Alto"  # Ambos baixos
+            elif score_compras < score_engajamento:
+                return "🚨 Risco: Queda Receita"  # Compra baixa, engajamento melhor
+            else:
+                return "🚨 Risco: Queda Engajamento"  # Engajamento baixo, compra melhor
         else:
-            # Score < 25 = Crítico
+            # Score < 15 = Crítico
             if score_compras < 15 and score_engajamento < 20:
-                return "💎 Churn Iminente"
+                return "💎 Churn Iminente"  # Ambos críticos
             elif score_compras < score_engajamento:
                 return "🚨 Risco: Queda Receita"
             else:
