@@ -704,6 +704,36 @@
                             </div>
                         </div>
 
+                        <!-- Bom -->
+                        <div class="cluster-card">
+                            <div class="cluster-header" onclick="toggleCluster('bom')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">📈</span>
+                                    <span class="cluster-name">Bom <span class="info-tooltip"><span class="tooltip-text">Top 50 jogadores com Score 65-79. Bom desempenho com potencial de crescimento.</span></span></span>
+                                    <span class="cluster-badge badge-bom">Score 65-79</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-bom-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-bom-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-bom-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-bom-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <!-- Estável -->
                         <div class="cluster-card">
                             <div class="cluster-header" onclick="toggleCluster('estavel')">
@@ -764,6 +794,36 @@
                             </div>
                         </div>
 
+                        <!-- Risco Alto -->
+                        <div class="cluster-card cluster-risco">
+                            <div class="cluster-header" onclick="toggleCluster('risco-alto')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">⚠️</span>
+                                    <span class="cluster-name">Risco Alto <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Top 50 jogadores com risco alto em ambas as métricas. Score baixo tanto em engajamento quanto em compras.</span></span></span>
+                                    <span class="cluster-badge badge-risco-alto">Score 25-39</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-risco-alto-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-risco-alto-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-risco-alto-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-risco-alto-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <!-- Risco Queda Receita -->
                         <div class="cluster-card cluster-risco">
                             <div class="cluster-header" onclick="toggleCluster('risco-receita')">
@@ -820,6 +880,36 @@
                                         </tr>
                                     </thead>
                                     <tbody id="cluster-risco-engajamento-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Churn Iminente -->
+                        <div class="cluster-card cluster-risco">
+                            <div class="cluster-header" onclick="toggleCluster('churn-iminente')">
+                                <div class="cluster-title">
+                                    <span class="cluster-icon">💎</span>
+                                    <span class="cluster-name">Churn Iminente <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Top 50 jogadores com alto risco de churn. Score crítico em ambas as métricas. Ação imediata necessária.</span></span></span>
+                                    <span class="cluster-badge badge-churn">Score < 25</span>
+                                </div>
+                                <div class="cluster-stats">
+                                    <span id="cluster-churn-iminente-count">0 jogadores</span>
+                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-churn-iminente-toggle"></i>
+                                </div>
+                            </div>
+                            <div class="cluster-content" id="cluster-churn-iminente-content">
+                                <table class="data-table cluster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player ID</th>
+                                            <th>Score Geral</th>
+                                            <th>Score Engajamento</th>
+                                            <th>Score Compras</th>
+                                            <th>VIP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cluster-churn-iminente-body"></tbody>
                                 </table>
                             </div>
                         </div>

@@ -965,21 +965,27 @@ async function carregarClustersComHistorico() {
         
         const jogadores = data.jogadores || [];
         
-        // Filtra top 50 de cada categoria
+        // Filtra top 50 de cada categoria (todas as 9 categorias do backend)
         const elite = jogadores.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
         const vipAtivo = jogadores.filter(j => j.categoria === '🏆 VIP Ativo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const bom = jogadores.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
         const estavel = jogadores.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
         const atencao = jogadores.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const riscoAlto = jogadores.filter(j => j.categoria === '🚨 Risco Alto').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
         const riscoReceita = jogadores.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
         const riscoEngajamento = jogadores.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        const churnIminente = jogadores.filter(j => j.categoria === '💎 Churn Iminente').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
         
         // Atualiza tabelas
         updateClusterTable('elite', elite);
         updateClusterTable('muito-bom', vipAtivo);
+        updateClusterTable('bom', bom);
         updateClusterTable('estavel', estavel);
         updateClusterTable('baixo', atencao);
+        updateClusterTable('risco-alto', riscoAlto);
         updateClusterTable('risco-receita', riscoReceita);
         updateClusterTable('risco-engajamento', riscoEngajamento);
+        updateClusterTable('churn-iminente', churnIminente);
         
     } catch (error) {
         console.error('[DEBUG] Erro ao carregar clusters:', error);

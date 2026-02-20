@@ -931,6 +931,21 @@ input[type="file"] {
     color: #fb923c;
 }
 
+.badge-bom {
+    background: rgba(52, 211, 153, 0.25);
+    color: #34d399;
+}
+
+.badge-risco-alto {
+    background: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.badge-churn {
+    background: rgba(139, 92, 246, 0.3);
+    color: #8b5cf6;
+}
+
 .badge-risco {
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
