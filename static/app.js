@@ -965,27 +965,44 @@ async function carregarClustersComHistorico() {
         
         const jogadores = data.jogadores || [];
         
-        // Filtra top 50 de cada categoria (todas as 9 categorias do backend)
-        const elite = jogadores.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const vipAtivo = jogadores.filter(j => j.categoria === '🏆 VIP Ativo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const bom = jogadores.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const estavel = jogadores.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const atencao = jogadores.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const riscoAlto = jogadores.filter(j => j.categoria === '🚨 Risco Alto').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const riscoReceita = jogadores.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const riscoEngajamento = jogadores.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
-        const churnIminente = jogadores.filter(j => j.categoria === '💎 Churn Iminente').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50);
+        // Filtra TODAS as 12 categorias do backend para segmentação completa
+        const todasCategorias = {
+            '⭐ Elite': jogadores.filter(j => j.categoria === '⭐ Elite').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '🏆 VIP Ativo': jogadores.filter(j => j.categoria === '🏆 VIP Ativo').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '📈 Bom': jogadores.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '📊 Estável': jogadores.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '⚠️ Atenção': jogadores.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '🚨 Risco Alto': jogadores.filter(j => j.categoria === '🚨 Risco Alto').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '🚨 Risco: Queda Receita': jogadores.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '🚨 Risco: Queda Engajamento': jogadores.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '💎 Churn Iminente': jogadores.filter(j => j.categoria === '💎 Churn Iminente').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '💰 Oportunidade VIP': jogadores.filter(j => j.categoria === '💰 Oportunidade VIP').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '💰 Oportunidade': jogadores.filter(j => j.categoria === '💰 Oportunidade').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
+            '🎯 Potencial': jogadores.filter(j => j.categoria === '🎯 Potencial').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50)
+        };
         
-        // Atualiza tabelas
-        updateClusterTable('elite', elite);
-        updateClusterTable('muito-bom', vipAtivo);
-        updateClusterTable('bom', bom);
-        updateClusterTable('estavel', estavel);
-        updateClusterTable('baixo', atencao);
-        updateClusterTable('risco-alto', riscoAlto);
-        updateClusterTable('risco-receita', riscoReceita);
-        updateClusterTable('risco-engajamento', riscoEngajamento);
-        updateClusterTable('churn-iminente', churnIminente);
+        // Log para debug - mostra distribuição completa
+        console.log('[DEBUG] Distribuição por categoria:');
+        Object.entries(todasCategorias).forEach(([cat, lista]) => {
+            console.log(`  ${cat}: ${lista.length} jogadores`);
+        });
+        
+        // Atualiza tabelas dos 12 clusters (9 principais + 3 oportunidade)
+        updateClusterTable('oportunidade-vip', todasCategorias['💰 Oportunidade VIP']);
+        updateClusterTable('oportunidade', todasCategorias['💰 Oportunidade']);
+        updateClusterTable('potencial', todasCategorias['🎯 Potencial']);
+        updateClusterTable('elite', todasCategorias['⭐ Elite']);
+        updateClusterTable('muito-bom', todasCategorias['🏆 VIP Ativo']);
+        updateClusterTable('bom', todasCategorias['📈 Bom']);
+        updateClusterTable('estavel', todasCategorias['📊 Estável']);
+        updateClusterTable('baixo', todasCategorias['⚠️ Atenção']);
+        updateClusterTable('risco-alto', todasCategorias['🚨 Risco Alto']);
+        updateClusterTable('risco-receita', todasCategorias['🚨 Risco: Queda Receita']);
+        updateClusterTable('risco-engajamento', todasCategorias['🚨 Risco: Queda Engajamento']);
+        updateClusterTable('churn-iminente', todasCategorias['💎 Churn Iminente']);
+        
+        // Salva todas as categorias para uso em segmentação
+        window.todasCategoriasClusters = todasCategorias;
         
     } catch (error) {
         console.error('[DEBUG] Erro ao carregar clusters:', error);

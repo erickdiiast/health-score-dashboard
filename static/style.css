@@ -946,6 +946,26 @@ input[type="file"] {
     color: #8b5cf6;
 }
 
+.badge-oportunidade-vip {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3));
+    color: #f59e0b;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.badge-oportunidade {
+    background: rgba(16, 185, 129, 0.25);
+    color: #10b981;
+}
+
+.badge-potencial {
+    background: rgba(99, 102, 241, 0.25);
+    color: #6366f1;
+}
+
+.cluster-oportunidade {
+    border-left: 4px solid #10b981;
+}
+
 .badge-risco {
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
