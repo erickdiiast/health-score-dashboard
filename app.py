@@ -412,13 +412,17 @@ class HealthScoreCalculator:
         
         return params
     
-    def calcular_score_login(self, df: pd.DataFrame) -> pd.Series:
+    def calcular_score_login(self, df: pd.DataFrame, data_referencia: datetime = None) -> pd.Series:
         """
         Calcula score de login baseado em:
         - Dias desde último login (decaimento exponencial)
         - Quantidade de logins na janela de 3 dias
+        
+        Args:
+            df: DataFrame com dados dos jogadores
+            data_referencia: Data de referência para cálculo (default: datetime.now())
         """
-        hoje = datetime.now()
+        hoje = data_referencia if data_referencia else datetime.now()
         scores = []
         
         for _, row in df.iterrows():
@@ -714,8 +718,14 @@ def detectar_tipo_arquivo(filename: str) -> str:
         return 'unknown'
 
 
-def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
-    """Processa DataFrame e adiciona scores calculados com parâmetros dinâmicos"""
+def processar_dados_jogadores(df: pd.DataFrame, data_referencia: datetime = None) -> tuple[pd.DataFrame, Dict]:
+    """Processa DataFrame e adiciona scores calculados com parâmetros dinâmicos
+    
+    Args:
+        df: DataFrame com dados dos jogadores
+        data_referencia: Data de referência para cálculo de scores (ex: data do snapshot)
+                         Se None, usa datetime.now()
+    """
     
     # Calcula parâmetros dinâmicos a partir dos dados
     params = HealthScoreCalculator.calcular_params_dinamicos(df)
@@ -730,8 +740,8 @@ def processar_dados_jogadores(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict]:
     if 'pid' in df.columns and 'player_id' not in df.columns:
         df = df.rename(columns={'pid': 'player_id'})
     
-    # Calcula scores individuais
-    df['score_login'] = calc.calcular_score_login(df)
+    # Calcula scores individuais (passando data de referência para score_login)
+    df['score_login'] = calc.calcular_score_login(df, data_referencia)
     df['score_engajamento'] = calc.calcular_score_engajamento(df)
     df['score_compras'] = calc.calcular_score_compras(df)
     
@@ -1771,7 +1781,7 @@ async def salvar_historico(request: Dict[str, Any]):
         raise HTTPException(status_code=404, detail="Nenhum dado processado. Faça upload primeiro.")
     
     resumo = cached_data['resumo']
-    df = cached_data['df']  # DataFrame completo com dados dos jogadores
+    df_original = cached_data['df']  # DataFrame completo com dados dos jogadores
     filtros = request.get('filtros', {})
     data_custom = request.get('data')  # Data no formato YYYY-MM-DD
     
@@ -1783,6 +1793,25 @@ async def salvar_historico(request: Dict[str, Any]):
     
     print(f"[DEBUG] Data recebida do frontend: {data_custom}")
     print(f"[DEBUG] Data usada para salvar: {data_usar}")
+    
+    # IMPORTANTE: Se a data do snapshot for diferente de hoje, recalcula os scores
+    # usando a data do snapshot como referência (para dados históricos)
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    if data_usar != hoje:
+        print(f"[DEBUG] Recalculando scores para data histórica: {data_usar}")
+        try:
+            # Converte a data do snapshot para datetime
+            data_referencia = datetime.strptime(data_usar, "%Y-%m-%d")
+            # Reprocessa os dados com a data de referência correta
+            df, params = processar_dados_jogadores(df_original.copy(), data_referencia)
+            # Recalcula o resumo com os novos scores
+            resumo = gerar_resumo(df, params)
+            print(f"[DEBUG] Scores recalculados para data: {data_usar}")
+        except Exception as e:
+            print(f"[WARN] Erro ao recalcular scores: {e}. Usando dados originais.")
+            df = df_original.copy()
+    else:
+        df = df_original.copy()
     
     # Salva snapshot geral
     snapshot_id = salvar_snapshot(resumo, filtros, data_usar)
