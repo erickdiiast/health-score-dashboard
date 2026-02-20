@@ -941,9 +941,18 @@ function updateClusterTable(clusterId, jogadores) {
 async function carregarClustersComHistorico() {
     try {
         console.log('[DEBUG] Carregando clusters com histórico acumulado...');
+        console.log(`[DEBUG] Filtros - Região: ${regiaoAtual}, VIP: ${vipAtual}`);
         
-        // Busca todos os jogadores com seu registro mais recente (até 90 dias)
-        const response = await fetch('/api/players/ultimos?dias=90');
+        // Constrói a URL com filtros
+        let url = '/api/players/ultimos?dias=90';
+        if (regiaoAtual && regiaoAtual !== 'all') {
+            url += `&regiao=${encodeURIComponent(regiaoAtual)}`;
+        }
+        if (vipAtual && vipAtual !== 'all') {
+            url += `&nivel_vip=${encodeURIComponent(vipAtual)}`;
+        }
+        
+        const response = await fetch(url);
         const data = await response.json();
         
         if (!data.success) {
@@ -952,6 +961,7 @@ async function carregarClustersComHistorico() {
         }
         
         console.log(`[DEBUG] Total de jogadores únicos: ${data.total}`);
+        console.log(`[DEBUG] Filtros aplicados - Região: ${data.regiao_filtro}, VIP: ${data.nivel_vip_filtro}`);
         
         const jogadores = data.jogadores || [];
         

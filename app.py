@@ -1931,18 +1931,18 @@ async def get_resumo_executivo(
 
 # ========== ENDPOINTS DE ACOMPANHAMENTO INDIVIDUAL ==========
 
-def get_ultimo_registro_todos_jogadores(dias: int = 90) -> List[Dict]:
+def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nivel_vip: int = None) -> List[Dict]:
     """
     Retorna o registro mais recente de TODOS os jogadores que já apareceram no histórico.
     Mesmo que o jogador não tenha dados no dia atual, retorna seu último registro.
+    Pode filtrar por região e nível VIP.
     """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Busca o registro mais recente de cada jogador usando GROUP BY e MAX(data)
-    # Isso garante que pegamos o registro com a data mais recente para cada player_id
-    cursor.execute('''
+    # Constrói a query base
+    query = '''
         SELECT 
             ps.player_id,
             ps.data,
@@ -1968,7 +1968,21 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90) -> List[Dict]:
             GROUP BY player_id
         ) latest ON ps.player_id = latest.player_id AND ps.data = latest.max_data
         WHERE ps.data >= date('now', '-{} days')
-    '''.format(dias, dias))
+    '''.format(dias, dias)
+    
+    # Adiciona filtros se fornecidos
+    params = []
+    if regiao and regiao != 'all':
+        query = query.replace('WHERE ps.data >= date', "WHERE ps.regiao = ? AND ps.data >= date")
+        params.append(regiao)
+    if nivel_vip and nivel_vip != 'all' and str(nivel_vip).isdigit():
+        query = query.replace('WHERE ps.data >= date', "WHERE ps.nivel_vip = ? AND ps.data >= date")
+        params.append(int(nivel_vip))
+    
+    if params:
+        cursor.execute(query, tuple(params))
+    else:
+        cursor.execute(query)
     
     rows = cursor.fetchall()
     
@@ -2001,19 +2015,24 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90) -> List[Dict]:
 
 @app.get("/api/players/ultimos")
 async def get_players_ultimos(
-    dias: int = Query(90, description="Dias para trás no histórico")
+    dias: int = Query(90, description="Dias para trás no histórico"),
+    regiao: str = Query(None, description="Filtrar por região (ex: BR, PT)"),
+    nivel_vip: str = Query(None, description="Filtrar por nível VIP (1-5)")
 ):
     """
     Retorna o último registro de todos os jogadores que já apareceram.
     Útil para manter a lista completa mesmo quando jogadores estão ausentes.
+    Aceita filtros de região e nível VIP.
     """
     try:
-        jogadores = get_ultimo_registro_todos_jogadores(dias)
+        jogadores = get_ultimo_registro_todos_jogadores(dias, regiao, nivel_vip)
         
         return {
             "success": True,
             "total": len(jogadores),
             "dias_considerados": dias,
+            "regiao_filtro": regiao,
+            "nivel_vip_filtro": nivel_vip,
             "jogadores": jogadores
         }
     except Exception as e:
