@@ -1974,6 +1974,51 @@ async def get_resumo_executivo(
 
 # ========== ENDPOINTS DE ACOMPANHAMENTO INDIVIDUAL ==========
 
+def recalcular_categoria(score_geral: float, score_engajamento: float, score_compras: float, nivel_vip: int = 1) -> str:
+    """
+    Recalcula a categoria com base nos scores.
+    Usa a mesma lógica do HealthScoreCalculator.categorizar_jogador
+    """
+    # OPORTUNIDADES (alto engajamento + baixas compras)
+    if score_engajamento >= 60 and score_compras < 40:
+        if nivel_vip >= 3:
+            return "💰 Oportunidade VIP"
+        else:
+            return "💰 Oportunidade"
+    
+    # POTENCIAL (bom engajamento, compras médias)
+    if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
+        return "🎯 Potencial"
+    
+    # Categorização principal por Score Geral
+    if score_geral >= 80:
+        return "⭐ Elite"
+    elif score_geral >= 65:
+        return "🏆 VIP Ativo"
+    elif score_geral >= 50:
+        return "📈 Bom"
+    elif score_geral >= 40:
+        return "📊 Estável"
+    elif score_geral >= 25:
+        return "⚠️ Atenção"
+    elif score_geral >= 15:
+        # Risco moderado
+        if score_compras < 25 and score_engajamento < 35:
+            return "🚨 Risco Alto"
+        elif score_compras < score_engajamento:
+            return "🚨 Risco: Queda Receita"
+        else:
+            return "🚨 Risco: Queda Engajamento"
+    else:
+        # Score < 15 = Crítico
+        if score_compras < 15 and score_engajamento < 20:
+            return "💎 Churn Iminente"
+        elif score_compras < score_engajamento:
+            return "🚨 Risco: Queda Receita"
+        else:
+            return "🚨 Risco: Queda Engajamento"
+
+
 def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nivel_vip: int = None) -> List[Dict]:
     """
     Retorna o registro mais recente de TODOS os jogadores que já apareceram no histórico.
@@ -2048,15 +2093,24 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nive
     jogadores_unicos = {}
     for row in rows:
         pid = row['player_id']
+        
+        # Recalcula a categoria com base nos scores (para usar a lógica mais recente)
+        score_geral = row['score_geral'] or 0
+        score_engajamento = row['score_engajamento'] or 0
+        score_compras = row['score_compras'] or 0
+        nivel_vip = row['nivel_vip'] or 1
+        
+        categoria_recalculada = recalcular_categoria(score_geral, score_engajamento, score_compras, nivel_vip)
+        
         jogadores_unicos[pid] = {
             'player_id': pid,
             'data': row['data'],
-            'score_geral': row['score_geral'],
-            'score_engajamento': row['score_engajamento'],
-            'score_compras': row['score_compras'],
+            'score_geral': score_geral,
+            'score_engajamento': score_engajamento,
+            'score_compras': score_compras,
             'score_login': row['score_login'],
-            'categoria': row['categoria'],
-            'nivel_vip': row['nivel_vip'],
+            'categoria': categoria_recalculada,  # Usa a categoria recalculada
+            'nivel_vip': nivel_vip,
             'regiao': row['regiao'],
             'qtd_compras_7d': row['qtd_compras_7d'],
             'ticket_medio_7d': row['ticket_medio_7d'],
