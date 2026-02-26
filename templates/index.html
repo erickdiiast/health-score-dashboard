@@ -322,7 +322,7 @@
                         <div class="categorias-grid">
                             <div class="categoria-item elite">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Elite <span class="info-tooltip"><span class="tooltip-text">Score ≥ 80. Jogadores com excelente performance em compras e engajamento. São a base mais valiosa e devem receber atenção especial para retenção.</span></span></span>
+                                    <span class="categoria-nome">⭐ Elite <span class="info-tooltip"><span class="tooltip-text">Score ≥ 80. Jogadores com excelente performance em compras e engajamento. São a base mais valiosa e devem receber atenção especial para retenção.</span></span></span>
                                     <span class="categoria-percentual" id="cat-elite">-</span>
                                 </div>
                                 <div class="categoria-bar">
@@ -330,55 +330,75 @@
                                 </div>
                                 <span class="categoria-desc">Score ≥ 80</span>
                             </div>
-                            <div class="categoria-item muito-bom">
+                            <div class="categoria-item vip-ativo">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Muito Bom <span class="info-tooltip"><span class="tooltip-text">Score 65-79. Jogadores engajados com boa frequência de compras. Potencial para se tornarem Elite com incentivos adequados.</span></span></span>
-                                    <span class="categoria-percentual" id="cat-muito-bom">-</span>
+                                    <span class="categoria-nome">🏆 VIP Ativo <span class="info-tooltip"><span class="tooltip-text">Score 65-79. Jogadores engajados com boa frequência de compras. Potencial para se tornarem Elite com incentivos adequados.</span></span></span>
+                                    <span class="categoria-percentual" id="cat-vip-ativo">-</span>
                                 </div>
                                 <div class="categoria-bar">
-                                    <div class="categoria-progress" id="progress-muito-bom"></div>
+                                    <div class="categoria-progress" id="progress-vip-ativo"></div>
                                 </div>
                                 <span class="categoria-desc">Score 65-79</span>
                             </div>
+                            <div class="categoria-item bom">
+                                <div class="categoria-header">
+                                    <span class="categoria-nome">📈 Bom <span class="info-tooltip"><span class="tooltip-text">Score 50-64. Jogadores com comportamento consistente mas com espaço para crescimento. Foco em aumentar frequência de compras.</span></span></span>
+                                    <span class="categoria-percentual" id="cat-bom">-</span>
+                                </div>
+                                <div class="categoria-bar">
+                                    <div class="categoria-progress" id="progress-bom"></div>
+                                </div>
+                                <span class="categoria-desc">Score 50-64</span>
+                            </div>
                             <div class="categoria-item estavel">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Estável <span class="info-tooltip"><span class="tooltip-text">Score 50-64. Jogadores com comportamento consistente mas com espaço para crescimento. Foco em aumentar frequência de compras.</span></span></span>
+                                    <span class="categoria-nome">📊 Estável <span class="info-tooltip"><span class="tooltip-text">Score 40-49. Jogadores estáveis com atividade moderada. Podem ser movidos para 'Bom' com estímulos certos.</span></span></span>
                                     <span class="categoria-percentual" id="cat-estavel">-</span>
                                 </div>
                                 <div class="categoria-bar">
                                     <div class="categoria-progress" id="progress-estavel"></div>
                                 </div>
-                                <span class="categoria-desc">Score 50-64</span>
+                                <span class="categoria-desc">Score 40-49</span>
                             </div>
-                            <div class="categoria-item baixo">
+                            <div class="categoria-item atencao">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Baixo <span class="info-tooltip"><span class="tooltip-text">Score 35-49. Jogadores com baixa atividade. Requerem ações de reengajamento para evitar churn.</span></span></span>
-                                    <span class="categoria-percentual" id="cat-baixo">-</span>
+                                    <span class="categoria-nome">⚠️ Atenção <span class="info-tooltip"><span class="tooltip-text">Score 25-39. Jogadores com baixa atividade. Requerem ações de reengajamento para evitar churn.</span></span></span>
+                                    <span class="categoria-percentual" id="cat-atencao">-</span>
                                 </div>
                                 <div class="categoria-bar">
-                                    <div class="categoria-progress" id="progress-baixo"></div>
+                                    <div class="categoria-progress" id="progress-atencao"></div>
                                 </div>
-                                <span class="categoria-desc">Score 35-49</span>
+                                <span class="categoria-desc">Score 25-39</span>
                             </div>
                             <div class="categoria-item risco-receita">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Risco: Queda em Receita <span class="info-tooltip"><span class="tooltip-text">Score < 35 onde engajamento > compras. Jogadores estão ativos mas não comprando. Prioridade para campanhas de conversão.</span></span></span>
+                                    <span class="categoria-nome">🚨 Risco: Queda Receita <span class="info-tooltip"><span class="tooltip-text">Score baixo onde engajamento > compras. Jogadores estão ativos mas não comprando. Prioridade para campanhas de conversão.</span></span></span>
                                     <span class="categoria-percentual" id="cat-risco-receita">-</span>
                                 </div>
                                 <div class="categoria-bar">
                                     <div class="categoria-progress" id="progress-risco-receita"></div>
                                 </div>
-                                <span class="categoria-desc">Score < 35 | Compras < Engajamento</span>
+                                <span class="categoria-desc">Engajamento > Compras</span>
                             </div>
                             <div class="categoria-item risco-engajamento">
                                 <div class="categoria-header">
-                                    <span class="categoria-nome">Risco: Queda em Engajamento <span class="info-tooltip"><span class="tooltip-text">Score < 35 onde compras ≥ engajamento. Jogadores compram pouco e têm baixo engajamento. Risco iminente de churn total.</span></span></span>
+                                    <span class="categoria-nome">🚨 Risco: Queda Engajamento <span class="info-tooltip"><span class="tooltip-text">Score baixo onde compras ≥ engajamento. Jogadores compram pouco e têm baixo engajamento. Risco de churn total.</span></span></span>
                                     <span class="categoria-percentual" id="cat-risco-engajamento">-</span>
                                 </div>
                                 <div class="categoria-bar">
                                     <div class="categoria-progress" id="progress-risco-engajamento"></div>
                                 </div>
-                                <span class="categoria-desc">Score < 35 | Engajamento ≤ Compras</span>
+                                <span class="categoria-desc">Compras ≥ Engajamento</span>
+                            </div>
+                            <div class="categoria-item churn-iminente">
+                                <div class="categoria-header">
+                                    <span class="categoria-nome">💎 Churn Iminente <span class="info-tooltip"><span class="tooltip-text">Score < 15 com compras < 15 e engajamento < 20. Jogadores em risco crítico de abandono. Última chance de retenção.</span></span></span>
+                                    <span class="categoria-percentual" id="cat-churn-iminente">-</span>
+                                </div>
+                                <div class="categoria-bar">
+                                    <div class="categoria-progress" id="progress-churn-iminente"></div>
+                                </div>
+                                <span class="categoria-desc">Score < 15</span>
                             </div>
                         </div>
                     </section>
@@ -880,36 +900,6 @@
                                         </tr>
                                     </thead>
                                     <tbody id="cluster-baixo-body"></tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Risco Alto -->
-                        <div class="cluster-card cluster-risco">
-                            <div class="cluster-header" onclick="toggleCluster('risco-alto')">
-                                <div class="cluster-title">
-                                    <span class="cluster-icon">⚠️</span>
-                                    <span class="cluster-name">Risco Alto <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Top 50 jogadores com risco alto em ambas as métricas. Score baixo tanto em engajamento quanto em compras.</span></span></span>
-                                    <span class="cluster-badge badge-risco-alto">Score 15-24</span>
-                                </div>
-                                <div class="cluster-stats">
-                                    <span id="cluster-risco-alto-count">0 jogadores</span>
-                                    <i class="fas fa-chevron-down cluster-toggle" id="cluster-risco-alto-toggle"></i>
-                                </div>
-                            </div>
-                            <div class="cluster-content" id="cluster-risco-alto-content">
-                                <table class="data-table cluster-table">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Player ID</th>
-                                            <th>Score Geral</th>
-                                            <th>Score Engajamento</th>
-                                            <th>Score Compras</th>
-                                            <th>VIP</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="cluster-risco-alto-body"></tbody>
                                 </table>
                             </div>
                         </div>

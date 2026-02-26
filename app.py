@@ -454,19 +454,16 @@ class HealthScoreCalculator:
     
     def calcular_score_engajamento(self, df: pd.DataFrame) -> pd.Series:
         """
-        Calcula score de engajamento usando Z-Score baseado em desvio padrão:
-        - Torneios: Z-score da quantidade de torneios
-        - Maratonas: Z-score da quantidade de maratonas
-        - Missões: Z-score da quantidade de missões
-        - Promoções: Z-score da quantidade de promoções
-        - Logins: Z-score da quantidade de logins
+        Calcula score de engajamento usando Z-Score baseado em desvio padrão,
+        ajustado para garantir que 0 atividades = score baixo (0-10).
         
-        Z-Score = (valor - média) / desvio_padrão
-        Score final = 50 + (z_score * 25)  # Média = 50, cada desvio = 25 pontos
+        Fórmula ajustada:
+        - 0 atividades = 0 pontos
+        - Média da amostra = 50 pontos
+        - Acima da média = escala Z normal
         """
         scores = []
         
-        # Calcula estatísticas para cada atividade (com fillna(0) para zeros)
         atividades = {
             'torneios': {'col': 'qtd_torneios_3d', 'peso': 2.0},
             'maratonas': {'col': 'qtd_maratonas_3d', 'peso': 2.5},
@@ -475,7 +472,7 @@ class HealthScoreCalculator:
             'logins': {'col': 'qtd_logins_3d', 'peso': 1.0}
         }
         
-        # Calcula média e desvio padrão para cada atividade
+        # Calcula estatísticas para cada atividade
         stats = {}
         for key, config in atividades.items():
             col = config['col']
@@ -483,63 +480,71 @@ class HealthScoreCalculator:
                 valores = df[col].fillna(0)
                 media = valores.mean()
                 std = valores.std() if len(valores) > 1 else 1
+                max_val = valores.max() if len(valores) > 0 else 1
                 if std == 0:
-                    std = 1  # Evita divisão por zero
-                stats[key] = {'media': media, 'std': std, 'peso': config['peso']}
+                    std = 1
+                stats[key] = {'media': media, 'std': std, 'max': max_val, 'peso': config['peso']}
         
         for _, row in df.iterrows():
             atividades_scores = []
             atividades_pesos = []
             
-            # Calcula Z-Score para cada atividade
             for key, stat in stats.items():
                 col = atividades[key]['col']
                 valor = row.get(col, 0) or 0
                 
-                # Calcula Z-Score
-                z_score = (valor - stat['media']) / stat['std']
-                # Converte Z-Score para escala 0-100 (média = 50, desvio = 25)
-                atividade_score = 50 + (z_score * 25)
-                # Limita entre 0 e 100
-                atividade_score = max(0, min(100, atividade_score))
+                if valor == 0:
+                    # Zero atividades = score 0 para esta atividade
+                    atividade_score = 0
+                else:
+                    # Normalização: 0->0, média->50, máximo->100
+                    # Usa fórmula híbrida: log para valores baixos, linear para altos
+                    if valor <= stat['media']:
+                        # Entre 0 e média: escala logarítmica suave
+                        ratio = valor / stat['media'] if stat['media'] > 0 else 0
+                        atividade_score = 50 * (ratio ** 0.5)  # Raiz quadrada para suavizar
+                    else:
+                        # Acima da média: Z-score normal
+                        z_score = (valor - stat['media']) / stat['std']
+                        atividade_score = 50 + (z_score * 25)
+                    
+                    atividade_score = max(0, min(100, atividade_score))
                 
                 atividades_scores.append(atividade_score * stat['peso'])
                 atividades_pesos.append(stat['peso'])
             
             if atividades_scores:
-                # Média ponderada das atividades
                 score_final = sum(atividades_scores) / sum(atividades_pesos)
                 scores.append(score_final)
             else:
-                scores.append(40)  # Score padrão se não houver dados
+                scores.append(0)  # Sem dados = 0
         
         return pd.Series(scores)
     
     def calcular_score_compras(self, df: pd.DataFrame) -> pd.Series:
         """
-        Calcula score de compras usando Z-Score baseado em desvio padrão:
-        - Quantidade (40%): Z-score da quantidade de compras
-        - Ticket Médio (35%): Z-score do ticket médio
-        - Recência (25%): Quanto mais recente, melhor
+        Calcula score de compras ajustado para garantir que 0 compras = score baixo.
         
-        Z-Score = (valor - média) / desvio_padrão
-        Score final = 50 + (z_score * 25)  # Média = 50, cada desvio = 25 pontos
+        Fórmula ajustada:
+        - 0 compras/ticket = 0 pontos
+        - Média da amostra = 50 pontos
+        - Acima da média = escala Z normal
         """
         scores = []
         hoje = datetime.now()
         
-        # Calcula estatísticas para quantidade (ignorando zeros)
+        # Calcula estatísticas para quantidade
         if 'qtd_compras_7d' in df.columns:
             valores_qtd = df['qtd_compras_7d'].fillna(0)
             media_qtd = valores_qtd.mean()
             std_qtd = valores_qtd.std() if len(valores_qtd) > 1 else 1
             if std_qtd == 0:
-                std_qtd = 1  # Evita divisão por zero
+                std_qtd = 1
         else:
             media_qtd = 2
             std_qtd = 1
         
-        # Calcula estatísticas para ticket (ignorando zeros)
+        # Calcula estatísticas para ticket
         if 'ticket_medio_7d' in df.columns:
             valores_ticket = df['ticket_medio_7d'].fillna(0)
             media_ticket = valores_ticket.mean()
@@ -554,27 +559,40 @@ class HealthScoreCalculator:
             pontuacoes = []
             pesos = []
             
-            # 1. Quantidade de compras (40% de peso) - Z-Score
+            # 1. Quantidade de compras (40% de peso)
             if 'qtd_compras_7d' in df.columns:
                 qtd = row.get('qtd_compras_7d', 0) or 0
-                # Calcula Z-Score
-                z_score_qtd = (qtd - media_qtd) / std_qtd
-                # Converte Z-Score para escala 0-100 (média = 50, desvio = 25)
-                qtd_score = 50 + (z_score_qtd * 25)
-                # Limita entre 0 e 100
-                qtd_score = max(0, min(100, qtd_score))
+                
+                if qtd == 0:
+                    qtd_score = 0  # Zero compras = score 0
+                else:
+                    # Normalização híbrida
+                    if qtd <= media_qtd:
+                        ratio = qtd / media_qtd if media_qtd > 0 else 0
+                        qtd_score = 50 * (ratio ** 0.5)  # Raiz quadrada
+                    else:
+                        z_score = (qtd - media_qtd) / std_qtd
+                        qtd_score = 50 + (z_score * 25)
+                    qtd_score = max(0, min(100, qtd_score))
+                
                 pontuacoes.append(qtd_score * 0.40)
                 pesos.append(0.40)
             
-            # 2. Ticket médio (35% de peso) - Z-Score
+            # 2. Ticket médio (35% de peso)
             if 'ticket_medio_7d' in df.columns:
                 ticket = row.get('ticket_medio_7d', 0) or 0
-                # Calcula Z-Score
-                z_score_ticket = (ticket - media_ticket) / std_ticket
-                # Converte Z-Score para escala 0-100
-                ticket_score = 50 + (z_score_ticket * 25)
-                # Limita entre 0 e 100
-                ticket_score = max(0, min(100, ticket_score))
+                
+                if ticket == 0:
+                    ticket_score = 0  # Zero ticket = score 0
+                else:
+                    if ticket <= media_ticket:
+                        ratio = ticket / media_ticket if media_ticket > 0 else 0
+                        ticket_score = 50 * (ratio ** 0.5)
+                    else:
+                        z_score = (ticket - media_ticket) / std_ticket
+                        ticket_score = 50 + (z_score * 25)
+                    ticket_score = max(0, min(100, ticket_score))
+                
                 pontuacoes.append(ticket_score * 0.35)
                 pesos.append(0.35)
             
@@ -583,7 +601,7 @@ class HealthScoreCalculator:
                 try:
                     ultima = pd.to_datetime(row['ultima_compra'])
                     dias_ultima = (hoje - ultima).days
-                    # Decaimento: 100% no dia 0, 50% aos 21 dias, 25% aos 42 dias
+                    # Decaimento exponencial
                     recencia_score = 100 * np.exp(-max(0, dias_ultima) / 30)
                     pontuacoes.append(recencia_score * 0.25)
                     pesos.append(0.25)
@@ -591,8 +609,7 @@ class HealthScoreCalculator:
                     pass
             
             if pontuacoes:
-                # Média ponderada
-                score_final = sum(pontuacoes) / sum(pesos) if sum(pesos) > 0 else 30
+                score_final = sum(pontuacoes) / sum(pesos) if sum(pesos) > 0 else 0
                 scores.append(score_final)
             else:
                 scores.append(0)  # Sem dados de compra = 0
@@ -659,13 +676,11 @@ class HealthScoreCalculator:
         elif score_geral >= 25:
             return "⚠️ Atenção"  # Score 25-39
         elif score_geral >= 15:
-            # Risco: Score 15-24
-            if score_compras < 25 and score_engajamento < 35:
-                return "🚨 Risco Alto"  # Ambos baixos
-            elif score_compras < score_engajamento:
-                return "🚨 Risco: Queda Receita"  # Compra baixa, engajamento melhor
+            # Risco: Score 15-24 - distribui entre os dois tipos de risco
+            if score_compras < score_engajamento:
+                return "🚨 Risco: Queda Receita"
             else:
-                return "🚨 Risco: Queda Engajamento"  # Engajamento baixo, compra melhor
+                return "🚨 Risco: Queda Engajamento"
         else:
             # Score < 15 = Crítico
             if score_compras < 15 and score_engajamento < 20:
@@ -782,7 +797,7 @@ def processar_dados_jogadores(df: pd.DataFrame, data_referencia: datetime = None
         '📈 Bom': '💳 Incentivar mais compras',
         '📊 Estável': '📱 Manter ritmo + Notificações',
         '⚠️ Atenção': '🔔 Reengajamento ativo',
-        '🚨 Risco Alto': '⚡ Oferta especial urgente',
+
         '🚨 Risco: Queda Receita': '🛒 Foco em conversão',
         '🚨 Risco: Queda Engajamento': '🎮 Foco em atividades',
         '💎 Churn Iminente': '📞 Ligação + Oferta última chance',
@@ -833,7 +848,7 @@ def salvar_snapshot(resumo: Dict, filtros: Dict = None, data_custom: str = None)
     cluster_muito_bom = (contagem.get('🏆 VIP Ativo', 0) + contagem.get('📈 Bom', 0) + 
                          contagem.get('💰 Oportunidade', 0) + contagem.get('🎯 Potencial', 0))
     cluster_estavel = contagem.get('📊 Estável', 0)
-    cluster_baixo = (contagem.get('⚠️ Atenção', 0) + contagem.get('🚨 Risco Alto', 0) + 
+    cluster_baixo = (contagem.get('⚠️ Atenção', 0) +  
                      contagem.get('💎 Churn Iminente', 0))
     cluster_risco_receita = contagem.get('🚨 Risco: Queda Receita', 0)
     cluster_risco_engajamento = contagem.get('🚨 Risco: Queda Engajamento', 0)
@@ -1111,7 +1126,7 @@ def get_players_com_flutuacao(cluster_origem: str = None, cluster_destino: str =
         # Determina se é melhora ou piora
         # Ordem de "qualidade": Elite > VIP Ativo > Bom > Estável > Atenção > Risco
         ordem_clusters = ['⭐ Elite', '🏆 VIP Ativo', '📈 Bom', '📊 Estável', 
-                         '⚠️ Atenção', '🚨 Risco Alto', '🚨 Risco: Queda Receita', 
+                         '⚠️ Atenção', '🚨 Risco: Queda Receita', 
                          '🚨 Risco: Queda Engajamento', '💎 Churn Iminente']
         
         idx_origem = ordem_clusters.index(primeiro['categoria']) if primeiro['categoria'] in ordem_clusters else 999
@@ -1149,8 +1164,124 @@ def get_players_com_flutuacao(cluster_origem: str = None, cluster_destino: str =
     return resultado
 
 
+def calcular_distribuicao_categorias(data: str, regiao: str = None, vip: str = None) -> Dict[str, int]:
+    """
+    Calcula a distribuição de categorias a partir dos dados individuais dos jogadores.
+    RECALCULA os scores a partir dos valores brutos usando a nova fórmula.
+    """
+    from statistics import mean, stdev
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Busca todos os dados brutos necessários
+    query = """
+        SELECT player_id, nivel_vip, regiao,
+               qtd_torneios_3d, qtd_maratonas_3d, qtd_missoes_3d, qtd_promos_3d, qtd_logins_3d,
+               qtd_compras_7d, ticket_medio_7d
+        FROM player_snapshots 
+        WHERE data = ?
+    """
+    params = [data]
+    
+    if regiao and regiao != 'all':
+        query += " AND regiao = ?"
+        params.append(regiao)
+    if vip and vip != 'all':
+        query += " AND nivel_vip = ?"
+        params.append(int(vip))
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    if not rows:
+        return {c: 0 for c in ['⭐ Elite', '🏆 VIP Ativo', '📈 Bom', '📊 Estável', '⚠️ Atenção', 
+                               '🚨 Risco: Queda Receita', '🚨 Risco: Queda Engajamento', 
+                               '💎 Churn Iminente', '💰 Oportunidade VIP', '💰 Oportunidade', '🎯 Potencial']}
+    
+    # Calcula estatísticas globais
+    todos_torneios = [r['qtd_torneios_3d'] or 0 for r in rows]
+    todos_maratonas = [r['qtd_maratonas_3d'] or 0 for r in rows]
+    todos_missoes = [r['qtd_missoes_3d'] or 0 for r in rows]
+    todos_promos = [r['qtd_promos_3d'] or 0 for r in rows]
+    todos_logins = [r['qtd_logins_3d'] or 0 for r in rows]
+    todos_compras = [r['qtd_compras_7d'] or 0 for r in rows]
+    todos_tickets = [r['ticket_medio_7d'] or 0 for r in rows]
+    
+    def calc_stats(valores):
+        m = mean(valores) if valores else 0
+        s = stdev(valores) if len(valores) > 1 else 1
+        if s == 0:
+            s = 1
+        return m, s
+    
+    media_torneios, std_torneios = calc_stats(todos_torneios)
+    media_maratonas, std_maratonas = calc_stats(todos_maratonas)
+    media_missoes, std_missoes = calc_stats(todos_missoes)
+    media_promos, std_promos = calc_stats(todos_promos)
+    media_logins, std_logins = calc_stats(todos_logins)
+    media_compras, std_compras = calc_stats(todos_compras)
+    media_tickets, std_tickets = calc_stats(todos_tickets)
+    
+    def calcular_score_atividade(valor, media, std):
+        """Calcula score de uma atividade (0-100)"""
+        if valor == 0:
+            return 0
+        if valor <= media:
+            ratio = valor / media if media > 0 else 0
+            return 50 * (ratio ** 0.5)
+        else:
+            z_score = (valor - media) / std
+            return min(100, 50 + (z_score * 25))
+    
+    # Inicializa contadores
+    categorias = {
+        '⭐ Elite': 0, '🏆 VIP Ativo': 0, '📈 Bom': 0, '📊 Estável': 0, '⚠️ Atenção': 0,
+        '🚨 Risco: Queda Receita': 0, '🚨 Risco: Queda Engajamento': 0,
+        '💎 Churn Iminente': 0, '💰 Oportunidade VIP': 0, '💰 Oportunidade': 0, '🎯 Potencial': 0
+    }
+    
+    for row in rows:
+        # Recalcula score de engajamento
+        s_torneios = calcular_score_atividade(row['qtd_torneios_3d'] or 0, media_torneios, std_torneios) * 2.0
+        s_maratonas = calcular_score_atividade(row['qtd_maratonas_3d'] or 0, media_maratonas, std_maratonas) * 2.5
+        s_missoes = calcular_score_atividade(row['qtd_missoes_3d'] or 0, media_missoes, std_missoes) * 1.5
+        s_promos = calcular_score_atividade(row['qtd_promos_3d'] or 0, media_promos, std_promos) * 1.0
+        s_logins = calcular_score_atividade(row['qtd_logins_3d'] or 0, media_logins, std_logins) * 1.0
+        
+        peso_total_eng = 8.0
+        score_engajamento = (s_torneios + s_maratonas + s_missoes + s_promos + s_logins) / peso_total_eng
+        
+        # Recalcula score de compras
+        s_qtd = calcular_score_atividade(row['qtd_compras_7d'] or 0, media_compras, std_compras) * 0.40
+        s_ticket = calcular_score_atividade(row['ticket_medio_7d'] or 0, media_tickets, std_tickets) * 0.35
+        
+        # Recência
+        s_recencia = 0
+        peso_recencia = 0
+        if row['qtd_compras_7d'] and row['qtd_compras_7d'] > 0:
+            s_recencia = 100 * 0.25
+            peso_recencia = 0.25
+        
+        peso_total_comp = 0.40 + 0.35 + peso_recencia
+        score_compras = (s_qtd + s_ticket + s_recencia) / peso_total_comp if peso_total_comp > 0 else 0
+        
+        # Score geral
+        score_geral = score_engajamento * 0.3 + score_compras * 0.7
+        
+        nivel_vip = row['nivel_vip'] or 1
+        
+        # Recalcula categoria
+        categoria = recalcular_categoria(score_geral, score_engajamento, score_compras, nivel_vip)
+        if categoria in categorias:
+            categorias[categoria] += 1
+    
+    return categorias
+
+
 def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> List[Dict]:
-    """Lista histórico de snapshots com filtros opcionais"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -1173,6 +1304,10 @@ def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> Lis
     
     historico = []
     for row in rows:
+        # Calcula distribuição de categorias a partir dos dados individuais
+        # Isso garante que tenhamos todas as 9+ categorias separadas, não agrupadas
+        distribuicao = calcular_distribuicao_categorias(row['data'], regiao, vip)
+        
         historico.append({
             'id': row['id'],
             'data': row['data'],
@@ -1183,14 +1318,7 @@ def listar_historico(regiao: str = None, vip: str = None, dias: int = 30) -> Lis
             'media_score_login': row['media_score_login'],
             'media_score_engajamento': row['media_score_engajamento'],
             'media_score_compras': row['media_score_compras'],
-            'clusters': {
-                '⭐ Elite': row['cluster_elite'],
-                '🏆 VIP Ativo': row['cluster_muito_bom'],
-                '📊 Estável': row['cluster_estavel'],
-                '⚠️ Atenção': row['cluster_baixo'],
-                '🚨 Risco: Queda Receita': row['cluster_risco_receita'],
-                '🚨 Risco: Queda Engajamento': row['cluster_risco_engajamento'],
-            },
+            'clusters': distribuicao,  # Usa distribuição calculada dos dados individuais
             'filtro_regiao': row['filtro_regiao'],
             'filtro_vip': row['filtro_vip'],
         })
@@ -1368,7 +1496,7 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
             "bom": round((df['categoria'] == '📈 Bom').sum() / total * 100, 2) if total > 0 else 0,
             "estavel": round((df['categoria'] == '📊 Estável').sum() / total * 100, 2) if total > 0 else 0,
             "atencao": round((df['categoria'] == '⚠️ Atenção').sum() / total * 100, 2) if total > 0 else 0,
-            "risco_alto": round((df['categoria'] == '🚨 Risco Alto').sum() / total * 100, 2) if total > 0 else 0,
+
             "risco_receita": round((df['categoria'] == '🚨 Risco: Queda Receita').sum() / total * 100, 2) if total > 0 else 0,
             "risco_engajamento": round((df['categoria'] == '🚨 Risco: Queda Engajamento').sum() / total * 100, 2) if total > 0 else 0,
             "churn_iminente": round((df['categoria'] == '💎 Churn Iminente').sum() / total * 100, 2) if total > 0 else 0,
@@ -1441,7 +1569,7 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                         "bom": round((df_regiao['categoria'] == '📈 Bom').sum() / len(df_regiao) * 100, 2),
                         "estavel": round((df_regiao['categoria'] == '📊 Estável').sum() / len(df_regiao) * 100, 2),
                         "atencao": round((df_regiao['categoria'] == '⚠️ Atenção').sum() / len(df_regiao) * 100, 2),
-                        "risco_alto": round((df_regiao['categoria'] == '🚨 Risco Alto').sum() / len(df_regiao) * 100, 2),
+
                         "risco_receita": round((df_regiao['categoria'] == '🚨 Risco: Queda Receita').sum() / len(df_regiao) * 100, 2),
                         "risco_engajamento": round((df_regiao['categoria'] == '🚨 Risco: Queda Engajamento').sum() / len(df_regiao) * 100, 2),
                         "churn_iminente": round((df_regiao['categoria'] == '💎 Churn Iminente').sum() / len(df_regiao) * 100, 2),
@@ -1481,7 +1609,7 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                     "bom": round((df_vip['categoria'] == '📈 Bom').sum() / len(df_vip) * 100, 2),
                     "estavel": round((df_vip['categoria'] == '📊 Estável').sum() / len(df_vip) * 100, 2),
                     "atencao": round((df_vip['categoria'] == '⚠️ Atenção').sum() / len(df_vip) * 100, 2),
-                    "risco_alto": round((df_vip['categoria'] == '🚨 Risco Alto').sum() / len(df_vip) * 100, 2),
+
                     "risco_receita": round((df_vip['categoria'] == '🚨 Risco: Queda Receita').sum() / len(df_vip) * 100, 2),
                     "risco_engajamento": round((df_vip['categoria'] == '🚨 Risco: Queda Engajamento').sum() / len(df_vip) * 100, 2),
                     "churn_iminente": round((df_vip['categoria'] == '💎 Churn Iminente').sum() / len(df_vip) * 100, 2),
@@ -1705,7 +1833,7 @@ async def export_excel():
             '% Bom': resumo['distribuicao_categorias'].get('bom', 0),
             '% Estável': resumo['distribuicao_categorias'].get('estavel', 0),
             '% Atenção': resumo['distribuicao_categorias'].get('atencao', 0),
-            '% Risco Alto': resumo['distribuicao_categorias'].get('risco_alto', 0),
+
             '% Risco Queda Receita': resumo['distribuicao_categorias'].get('risco_receita', 0),
             '% Risco Queda Engajamento': resumo['distribuicao_categorias'].get('risco_engajamento', 0),
             '% Churn Iminente': resumo['distribuicao_categorias'].get('churn_iminente', 0),
@@ -1766,7 +1894,7 @@ async def export_excel():
                     '% Bom': vip_stats['distribuicao_categorias'].get('bom', 0),
                     '% Estável': vip_stats['distribuicao_categorias'].get('estavel', 0),
                     '% Atenção': vip_stats['distribuicao_categorias'].get('atencao', 0),
-                    '% Risco Alto': vip_stats['distribuicao_categorias'].get('risco_alto', 0),
+
                     '% Risco Queda Receita': vip_stats['distribuicao_categorias'].get('risco_receita', 0),
                     '% Risco Queda Engajamento': vip_stats['distribuicao_categorias'].get('risco_engajamento', 0),
                     '% Churn Iminente': vip_stats['distribuicao_categorias'].get('churn_iminente', 0),
@@ -1954,12 +2082,15 @@ async def get_resumo_executivo(
         },
         "variacoes_dia": variacoes,
         "distribuicao_clusters": {
-            "Elite": {"qtd": clusters['Elite'], "pct": round(clusters['Elite']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
-            "Muito bom": {"qtd": clusters['Muito bom'], "pct": round(clusters['Muito bom']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
-            "Estável": {"qtd": clusters['Estável'], "pct": round(clusters['Estável']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
-            "Baixo": {"qtd": clusters['Baixo'], "pct": round(clusters['Baixo']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
-            "Risco Receita": {"qtd": clusters['Risco: Queda em Receita'], "pct": round(clusters['Risco: Queda em Receita']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
-            "Risco Engajamento": {"qtd": clusters['Risco: Queda em Engajamento'], "pct": round(clusters['Risco: Queda em Engajamento']/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "⭐ Elite": {"qtd": clusters.get('⭐ Elite', 0), "pct": round(clusters.get('⭐ Elite', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "🏆 VIP Ativo": {"qtd": clusters.get('🏆 VIP Ativo', 0), "pct": round(clusters.get('🏆 VIP Ativo', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "📈 Bom": {"qtd": clusters.get('📈 Bom', 0), "pct": round(clusters.get('📈 Bom', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "📊 Estável": {"qtd": clusters.get('📊 Estável', 0), "pct": round(clusters.get('📊 Estável', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "⚠️ Atenção": {"qtd": clusters.get('⚠️ Atenção', 0), "pct": round(clusters.get('⚠️ Atenção', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+
+            "🚨 Risco: Queda Receita": {"qtd": clusters.get('🚨 Risco: Queda Receita', 0), "pct": round(clusters.get('🚨 Risco: Queda Receita', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "🚨 Risco: Queda Engajamento": {"qtd": clusters.get('🚨 Risco: Queda Engajamento', 0), "pct": round(clusters.get('🚨 Risco: Queda Engajamento', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
+            "💎 Churn Iminente": {"qtd": clusters.get('💎 Churn Iminente', 0), "pct": round(clusters.get('💎 Churn Iminente', 0)/total_jogadores*100, 1) if total_jogadores > 0 else 0},
         },
         "evolucao": [
             {
@@ -1979,6 +2110,16 @@ def recalcular_categoria(score_geral: float, score_engajamento: float, score_com
     Recalcula a categoria com base nos scores.
     Usa a mesma lógica do HealthScoreCalculator.categorizar_jogador
     """
+    # Garante que os scores sejam numéricos
+    try:
+        score_geral = float(score_geral) if score_geral is not None else 0
+        score_engajamento = float(score_engajamento) if score_engajamento is not None else 0
+        score_compras = float(score_compras) if score_compras is not None else 0
+        nivel_vip = int(nivel_vip) if nivel_vip is not None else 1
+    except (ValueError, TypeError):
+        score_geral = score_engajamento = score_compras = 0
+        nivel_vip = 1
+    
     # OPORTUNIDADES (alto engajamento + baixas compras)
     if score_engajamento >= 60 and score_compras < 40:
         if nivel_vip >= 3:
@@ -2002,10 +2143,8 @@ def recalcular_categoria(score_geral: float, score_engajamento: float, score_com
     elif score_geral >= 25:
         return "⚠️ Atenção"
     elif score_geral >= 15:
-        # Risco moderado
-        if score_compras < 25 and score_engajamento < 35:
-            return "🚨 Risco Alto"
-        elif score_compras < score_engajamento:
+        # Risco moderado (Score 15-24) - distribui entre os dois tipos de risco
+        if score_compras < score_engajamento:
             return "🚨 Risco: Queda Receita"
         else:
             return "🚨 Risco: Queda Engajamento"
@@ -2091,23 +2230,106 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nive
     
     # Converte para lista de dicionários
     jogadores_unicos = {}
+    contagem_categorias = {}
+    contagem_scores = {'<15': 0, '15-24': 0, '25-39': 0, '>=40': 0}
+    
+    # Calcula estatísticas globais para recalcular scores
+    from statistics import mean, stdev
+    
+    # Coleta todos os valores para calcular estatísticas
+    todos_torneios = [r['qtd_torneios_3d'] or 0 for r in rows]
+    todos_maratonas = [r['qtd_maratonas_3d'] or 0 for r in rows]
+    todos_missoes = [r['qtd_missoes_3d'] or 0 for r in rows]
+    todos_promos = [r['qtd_promos_3d'] or 0 for r in rows]
+    todos_logins = [r['qtd_logins_3d'] or 0 for r in rows]
+    todos_compras = [r['qtd_compras_7d'] or 0 for r in rows]
+    todos_tickets = [r['ticket_medio_7d'] or 0 for r in rows]
+    
+    # Calcula médias e desvios
+    def calc_stats(valores):
+        m = mean(valores) if valores else 0
+        s = stdev(valores) if len(valores) > 1 else 1
+        if s == 0:
+            s = 1
+        return m, s
+    
+    media_torneios, std_torneios = calc_stats(todos_torneios)
+    media_maratonas, std_maratonas = calc_stats(todos_maratonas)
+    media_missoes, std_missoes = calc_stats(todos_missoes)
+    media_promos, std_promos = calc_stats(todos_promos)
+    media_logins, std_logins = calc_stats(todos_logins)
+    media_compras, std_compras = calc_stats(todos_compras)
+    media_tickets, std_tickets = calc_stats(todos_tickets)
+    
+    def calcular_score_atividade(valor, media, std):
+        """Calcula score de uma atividade (0-100)"""
+        if valor == 0:
+            return 0
+        if valor <= media:
+            ratio = valor / media if media > 0 else 0
+            return 50 * (ratio ** 0.5)
+        else:
+            z_score = (valor - media) / std
+            return min(100, 50 + (z_score * 25))
+    
     for row in rows:
         pid = row['player_id']
         
-        # Recalcula a categoria com base nos scores (para usar a lógica mais recente)
-        score_geral = row['score_geral'] or 0
-        score_engajamento = row['score_engajamento'] or 0
-        score_compras = row['score_compras'] or 0
+        # Recalcula scores a partir dos valores brutos
+        # Score de engajamento (média ponderada das atividades)
+        s_torneios = calcular_score_atividade(row['qtd_torneios_3d'] or 0, media_torneios, std_torneios) * 2.0
+        s_maratonas = calcular_score_atividade(row['qtd_maratonas_3d'] or 0, media_maratonas, std_maratonas) * 2.5
+        s_missoes = calcular_score_atividade(row['qtd_missoes_3d'] or 0, media_missoes, std_missoes) * 1.5
+        s_promos = calcular_score_atividade(row['qtd_promos_3d'] or 0, media_promos, std_promos) * 1.0
+        s_logins = calcular_score_atividade(row['qtd_logins_3d'] or 0, media_logins, std_logins) * 1.0
+        
+        peso_total_eng = 2.0 + 2.5 + 1.5 + 1.0 + 1.0
+        score_engajamento = (s_torneios + s_maratonas + s_missoes + s_promos + s_logins) / peso_total_eng
+        
+        # Score de compras (média ponderada)
+        s_qtd = calcular_score_atividade(row['qtd_compras_7d'] or 0, media_compras, std_compras) * 0.40
+        s_ticket = calcular_score_atividade(row['ticket_medio_7d'] or 0, media_tickets, std_tickets) * 0.35
+        
+        # Recência (se disponível)
+        s_recencia = 0
+        peso_recencia = 0
+        if row['qtd_compras_7d'] and row['qtd_compras_7d'] > 0:
+            # Se comprou nos últimos 7 dias, recência = 100
+            s_recencia = 100 * 0.25
+            peso_recencia = 0.25
+        
+        peso_total_comp = 0.40 + 0.35 + peso_recencia
+        if peso_total_comp > 0:
+            score_compras = (s_qtd + s_ticket + s_recencia) / peso_total_comp
+        else:
+            score_compras = 0
+        
+        # Score geral (ponderação: engajamento 30%, compras 70%)
+        score_geral = score_engajamento * 0.3 + score_compras * 0.7
+        
         nivel_vip = row['nivel_vip'] or 1
         
+        # Debug: contagem de scores
+        if score_geral < 15:
+            contagem_scores['<15'] += 1
+        elif score_geral < 25:
+            contagem_scores['15-24'] += 1
+        elif score_geral < 40:
+            contagem_scores['25-39'] += 1
+        else:
+            contagem_scores['>=40'] += 1
+        
         categoria_recalculada = recalcular_categoria(score_geral, score_engajamento, score_compras, nivel_vip)
+        
+        # Debug: contagem de categorias
+        contagem_categorias[categoria_recalculada] = contagem_categorias.get(categoria_recalculada, 0) + 1
         
         jogadores_unicos[pid] = {
             'player_id': pid,
             'data': row['data'],
-            'score_geral': score_geral,
-            'score_engajamento': score_engajamento,
-            'score_compras': score_compras,
+            'score_geral': round(score_geral, 2),
+            'score_engajamento': round(score_engajamento, 2),
+            'score_compras': round(score_compras, 2),
             'score_login': row['score_login'],
             'categoria': categoria_recalculada,  # Usa a categoria recalculada
             'nivel_vip': nivel_vip,
@@ -2120,6 +2342,10 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nive
             'qtd_promos_3d': row['qtd_promos_3d'],
             'qtd_logins_3d': row['qtd_logins_3d']
         }
+    
+    # Debug: imprime distribuição
+    print(f"[DEBUG] Distribuição de scores: {contagem_scores}")
+    print(f"[DEBUG] Distribuição de categorias: {contagem_categorias}")
     
     conn.close()
     return list(jogadores_unicos.values())

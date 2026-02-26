@@ -471,33 +471,37 @@ function updateScores(resumo) {
  * Atualiza distribuição de categorias
  */
 function updateCategorias(distribuicao) {
-    // Mapeia TODAS as categorias novas para os 6 grupos do HTML
+    // 8 categorias (Risco Alto removido)
     const valores = {
-        'elite': (distribuicao.elite || 0) + (distribuicao.oportunidade_vip || 0), // Elite + Oportunidade VIP
-        'muito_bom': (distribuicao.vip_ativo || 0) + (distribuicao.bom || 0) + (distribuicao.oportunidade || 0) + (distribuicao.potencial || 0), // VIP Ativo + Bom + Oportunidade + Potencial
+        'elite': distribuicao.elite || 0,
+        'vip_ativo': distribuicao.vip_ativo || 0,
+        'bom': distribuicao.bom || 0,
         'estavel': distribuicao.estavel || 0,
-        'baixo': (distribuicao.atencao || 0) + (distribuicao.risco_alto || 0) + (distribuicao.churn_iminente || 0), // Atenção + Risco Alto + Churn
+        'atencao': distribuicao.atencao || 0,
         'risco_receita': distribuicao.risco_receita || 0,
-        'risco_engajamento': distribuicao.risco_engajamento || 0
+        'risco_engajamento': distribuicao.risco_engajamento || 0,
+        'churn_iminente': distribuicao.churn_iminente || 0
     };
     
-    // Calcula total para verificar
-    const total = Object.values(valores).reduce((a, b) => a + b, 0);
-    
+    // Atualiza percentuais
     document.getElementById('cat-elite').textContent = valores.elite.toFixed(2) + '%';
-    document.getElementById('cat-muito-bom').textContent = valores.muito_bom.toFixed(2) + '%';
+    document.getElementById('cat-vip-ativo').textContent = valores.vip_ativo.toFixed(2) + '%';
+    document.getElementById('cat-bom').textContent = valores.bom.toFixed(2) + '%';
     document.getElementById('cat-estavel').textContent = valores.estavel.toFixed(2) + '%';
-    document.getElementById('cat-baixo').textContent = valores.baixo.toFixed(2) + '%';
+    document.getElementById('cat-atencao').textContent = valores.atencao.toFixed(2) + '%';
     document.getElementById('cat-risco-receita').textContent = valores.risco_receita.toFixed(2) + '%';
     document.getElementById('cat-risco-engajamento').textContent = valores.risco_engajamento.toFixed(2) + '%';
+    document.getElementById('cat-churn-iminente').textContent = valores.churn_iminente.toFixed(2) + '%';
     
     // Atualiza barras de progresso
     document.getElementById('progress-elite').style.width = valores.elite + '%';
-    document.getElementById('progress-muito-bom').style.width = valores.muito_bom + '%';
+    document.getElementById('progress-vip-ativo').style.width = valores.vip_ativo + '%';
+    document.getElementById('progress-bom').style.width = valores.bom + '%';
     document.getElementById('progress-estavel').style.width = valores.estavel + '%';
-    document.getElementById('progress-baixo').style.width = valores.baixo + '%';
+    document.getElementById('progress-atencao').style.width = valores.atencao + '%';
     document.getElementById('progress-risco-receita').style.width = valores.risco_receita + '%';
     document.getElementById('progress-risco-engajamento').style.width = valores.risco_engajamento + '%';
+    document.getElementById('progress-churn-iminente').style.width = valores.churn_iminente + '%';
 }
 
 /**
@@ -518,36 +522,42 @@ function renderCategoriaChart(distribuicao) {
         categoriaChart.destroy();
     }
     
-    // Agrupa categorias para manter compatibilidade com o gráfico
+    // 8 categorias (Risco Alto removido)
     const valores = {
         elite: distribuicao.elite || 0,
-        vip_ativo: (distribuicao.vip_ativo || 0) + (distribuicao.bom || 0),
+        vip_ativo: distribuicao.vip_ativo || 0,
+        bom: distribuicao.bom || 0,
         estavel: distribuicao.estavel || 0,
-        atencao: (distribuicao.atencao || 0) + (distribuicao.risco_alto || 0) + (distribuicao.churn_iminente || 0),
+        atencao: distribuicao.atencao || 0,
         risco_receita: distribuicao.risco_receita || 0,
-        risco_engajamento: distribuicao.risco_engajamento || 0
+        risco_engajamento: distribuicao.risco_engajamento || 0,
+        churn_iminente: distribuicao.churn_iminente || 0
     };
     
     categoriaChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['⭐ Elite', '🏆 VIP Ativo/Bom', '📊 Estável', '⚠️ Atenção/Risco', '🚨 Risco: Queda Receita', '🚨 Risco: Queda Engajamento'],
+            labels: ['⭐ Elite', '🏆 VIP Ativo', '📈 Bom', '📊 Estável', '⚠️ Atenção', '🚨 Risco Receita', '🚨 Risco Engajamento', '💎 Churn Iminente'],
             datasets: [{
                 data: [
                     valores.elite,
                     valores.vip_ativo,
+                    valores.bom,
                     valores.estavel,
                     valores.atencao,
                     valores.risco_receita,
-                    valores.risco_engajamento
+                    valores.risco_engajamento,
+                    valores.churn_iminente
                 ],
                 backgroundColor: [
-                    '#fbbf24',
-                    '#34d399',
-                    '#60a5fa',
-                    '#fb923c',
-                    '#ef4444',
-                    '#f97316'
+                    '#fbbf24',   // Elite - amarelo
+                    '#10b981',   // VIP Ativo - verde escuro
+                    '#34d399',   // Bom - verde claro
+                    '#60a5fa',   // Estável - azul
+                    '#fb923c',   // Atenção - laranja
+                    '#dc2626',   // Risco Receita - vermelho
+                    '#f59e0b',   // Risco Engajamento - âmbar
+                    '#8b5cf6'    // Churn Iminente - roxo
                 ],
                 borderWidth: 0,
                 hoverOffset: 4
@@ -560,9 +570,10 @@ function renderCategoriaChart(distribuicao) {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        padding: 20,
+                        padding: 15,
                         usePointStyle: true,
-                        pointStyle: 'circle'
+                        pointStyle: 'circle',
+                        font: { size: 11 }
                     }
                 },
                 tooltip: {
@@ -573,7 +584,7 @@ function renderCategoriaChart(distribuicao) {
                     }
                 }
             },
-            cutout: '60%'
+            cutout: '55%'
         }
     });
 }
@@ -972,7 +983,6 @@ async function carregarClustersComHistorico() {
             '📈 Bom': jogadores.filter(j => j.categoria === '📈 Bom').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
             '📊 Estável': jogadores.filter(j => j.categoria === '📊 Estável').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
             '⚠️ Atenção': jogadores.filter(j => j.categoria === '⚠️ Atenção').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
-            '🚨 Risco Alto': jogadores.filter(j => j.categoria === '🚨 Risco Alto').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
             '🚨 Risco: Queda Receita': jogadores.filter(j => j.categoria === '🚨 Risco: Queda Receita').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
             '🚨 Risco: Queda Engajamento': jogadores.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
             '💎 Churn Iminente': jogadores.filter(j => j.categoria === '💎 Churn Iminente').sort((a, b) => b.score_geral - a.score_geral).slice(0, 50),
@@ -996,7 +1006,6 @@ async function carregarClustersComHistorico() {
         updateClusterTable('bom', todasCategorias['📈 Bom']);
         updateClusterTable('estavel', todasCategorias['📊 Estável']);
         updateClusterTable('baixo', todasCategorias['⚠️ Atenção']);
-        updateClusterTable('risco-alto', todasCategorias['🚨 Risco Alto']);
         updateClusterTable('risco-receita', todasCategorias['🚨 Risco: Queda Receita']);
         updateClusterTable('risco-engajamento', todasCategorias['🚨 Risco: Queda Engajamento']);
         updateClusterTable('churn-iminente', todasCategorias['💎 Churn Iminente']);
@@ -1655,33 +1664,39 @@ function atualizarTabelaClusters(ultimoDia, penultimoDia) {
     // Clusters do dia anterior (para tendência)
     const clustersAnterior = penultimoDia ? (penultimoDia.clusters || {}) : null;
     
-    // Agrupa as categorias nos 6 grupos da tabela
+    // 8 categorias (Risco Alto removido)
     const grupos = {
-        'Elite': (clusters['⭐ Elite'] || 0),
-        'Muito bom': (clusters['🏆 VIP Ativo'] || 0),
-        'Estável': clusters['📊 Estável'] || 0,
-        'Baixo': (clusters['⚠️ Atenção'] || 0),
-        'Risco: Queda em Receita': clusters['🚨 Risco: Queda Receita'] || 0,
-        'Risco: Queda em Engajamento': clusters['🚨 Risco: Queda Engajamento'] || 0
+        '⭐ Elite': (clusters['⭐ Elite'] || 0),
+        '🏆 VIP Ativo': (clusters['🏆 VIP Ativo'] || 0),
+        '📈 Bom': (clusters['📈 Bom'] || 0),
+        '📊 Estável': clusters['📊 Estável'] || 0,
+        '⚠️ Atenção': (clusters['⚠️ Atenção'] || 0),
+        '🚨 Risco: Queda Receita': clusters['🚨 Risco: Queda Receita'] || 0,
+        '🚨 Risco: Queda Engajamento': clusters['🚨 Risco: Queda Engajamento'] || 0,
+        '💎 Churn Iminente': (clusters['💎 Churn Iminente'] || 0)
     };
     
     // Grupos do dia anterior
     const gruposAnterior = clustersAnterior ? {
-        'Elite': (clustersAnterior['⭐ Elite'] || 0),
-        'Muito bom': (clustersAnterior['🏆 VIP Ativo'] || 0),
-        'Estável': clustersAnterior['📊 Estável'] || 0,
-        'Baixo': (clustersAnterior['⚠️ Atenção'] || 0),
-        'Risco: Queda em Receita': clustersAnterior['🚨 Risco: Queda Receita'] || 0,
-        'Risco: Queda em Engajamento': clustersAnterior['🚨 Risco: Queda Engajamento'] || 0
+        '⭐ Elite': (clustersAnterior['⭐ Elite'] || 0),
+        '🏆 VIP Ativo': (clustersAnterior['🏆 VIP Ativo'] || 0),
+        '📈 Bom': (clustersAnterior['📈 Bom'] || 0),
+        '📊 Estável': clustersAnterior['📊 Estável'] || 0,
+        '⚠️ Atenção': (clustersAnterior['⚠️ Atenção'] || 0),
+        '🚨 Risco: Queda Receita': clustersAnterior['🚨 Risco: Queda Receita'] || 0,
+        '🚨 Risco: Queda Engajamento': clustersAnterior['🚨 Risco: Queda Engajamento'] || 0,
+        '💎 Churn Iminente': (clustersAnterior['💎 Churn Iminente'] || 0)
     } : null;
     
     const grupoInfo = {
-        'Elite': { icone: '⭐', cor: '#fbbf24' },
-        'Muito bom': { icone: '📈', cor: '#34d399' },
-        'Estável': { icone: '📊', cor: '#60a5fa' },
-        'Baixo': { icone: '⚠️', cor: '#fb923c' },
-        'Risco: Queda em Receita': { icone: '🚨', cor: '#ef4444' },
-        'Risco: Queda em Engajamento': { icone: '📉', cor: '#f59e0b' }
+        '⭐ Elite': { icone: '⭐', cor: '#fbbf24' },
+        '🏆 VIP Ativo': { icone: '🏆', cor: '#10b981' },
+        '📈 Bom': { icone: '📈', cor: '#34d399' },
+        '📊 Estável': { icone: '📊', cor: '#60a5fa' },
+        '⚠️ Atenção': { icone: '⚠️', cor: '#fb923c' },
+        '🚨 Risco: Queda Receita': { icone: '🚨', cor: '#dc2626' },
+        '🚨 Risco: Queda Engajamento': { icone: '📉', cor: '#f59e0b' },
+        '💎 Churn Iminente': { icone: '💎', cor: '#8b5cf6' }
     };
     
     let html = '';
@@ -1844,29 +1859,33 @@ function atualizarGraficoClusters(ultimoDia) {
     const clusters = ultimoDia.clusters || {};
     const total = ultimoDia.total_jogadores || 0;
     
-    // Dados do histórico já vêm agrupados em 6 categorias
-    const dadosAgrupados = [
+    // 8 categorias (Risco Alto removido)
+    const dados = [
         clusters['⭐ Elite'] || 0,
         clusters['🏆 VIP Ativo'] || 0,
+        clusters['📈 Bom'] || 0,
         clusters['📊 Estável'] || 0,
         clusters['⚠️ Atenção'] || 0,
         clusters['🚨 Risco: Queda Receita'] || 0,
-        clusters['🚨 Risco: Queda Engajamento'] || 0
+        clusters['🚨 Risco: Queda Engajamento'] || 0,
+        clusters['💎 Churn Iminente'] || 0
     ];
     
     execClustersChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['⭐ Elite', '🏆 VIP Ativo/Bom', '📊 Estável', '⚠️ Atenção/Risco', '🚨 Risco Receita', '🚨 Risco Engajamento'],
+            labels: ['⭐ Elite', '🏆 VIP Ativo', '📈 Bom', '📊 Estável', '⚠️ Atenção', '🚨 Risco Receita', '🚨 Risco Engajamento', '💎 Churn Iminente'],
             datasets: [{
-                data: dadosAgrupados,
+                data: dados,
                 backgroundColor: [
-                    '#fbbf24',
-                    '#34d399',
-                    '#60a5fa',
-                    '#fb923c',
-                    '#ef4444',
-                    '#f59e0b'
+                    '#fbbf24',   // Elite
+                    '#10b981',   // VIP Ativo
+                    '#34d399',   // Bom
+                    '#60a5fa',   // Estável
+                    '#fb923c',   // Atenção
+                    '#dc2626',   // Risco Receita
+                    '#f59e0b',   // Risco Engajamento
+                    '#8b5cf6'    // Churn Iminente
                 ],
                 borderWidth: 0
             }]
@@ -1879,7 +1898,8 @@ function atualizarGraficoClusters(ultimoDia) {
                     position: 'bottom',
                     labels: {
                         usePointStyle: true,
-                        padding: 15
+                        padding: 12,
+                        font: { size: 10 }
                     }
                 },
                 tooltip: {

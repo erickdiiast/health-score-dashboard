@@ -21,12 +21,15 @@
     --text-muted: #64748b;
     
     --elite: #fbbf24;
-    --muito-bom: #34d399;
+    --vip-ativo: #10b981;
+    --bom: #34d399;
     --estavel: #60a5fa;
-    --baixo: #fb923c;
-    --risco: #f87171;
-    --risco-receita: #ef4444;
+    --atencao: #fb923c;
+
+    --risco-receita: #dc2626;
     --risco-engajamento: #f59e0b;
+    --churn-iminente: #8b5cf6;
+    --risco: #f87171;
     
     /* Cores VIP */
     --vip-ametista: #9B59B6;
@@ -787,11 +790,13 @@ input[type="file"] {
 }
 
 .categoria-item.elite { border-left-color: var(--elite); }
-.categoria-item.muito-bom { border-left-color: var(--muito-bom); }
+.categoria-item.vip-ativo { border-left-color: var(--vip-ativo); }
+.categoria-item.bom { border-left-color: var(--bom); }
 .categoria-item.estavel { border-left-color: var(--estavel); }
-.categoria-item.baixo { border-left-color: var(--baixo); }
+.categoria-item.atencao { border-left-color: var(--atencao); }
 .categoria-item.risco-receita { border-left-color: var(--risco-receita); }
 .categoria-item.risco-engajamento { border-left-color: var(--risco-engajamento); }
+.categoria-item.churn-iminente { border-left-color: var(--churn-iminente); }
 
 .categoria-header {
     display: flex;
@@ -824,11 +829,13 @@ input[type="file"] {
 }
 
 .categoria-item.elite .categoria-progress { background: var(--elite); }
-.categoria-item.muito-bom .categoria-progress { background: var(--muito-bom); }
+.categoria-item.vip-ativo .categoria-progress { background: var(--vip-ativo); }
+.categoria-item.bom .categoria-progress { background: var(--bom); }
 .categoria-item.estavel .categoria-progress { background: var(--estavel); }
-.categoria-item.baixo .categoria-progress { background: var(--baixo); }
+.categoria-item.atencao .categoria-progress { background: var(--atencao); }
 .categoria-item.risco-receita .categoria-progress { background: var(--risco-receita); }
 .categoria-item.risco-engajamento .categoria-progress { background: var(--risco-engajamento); }
+.categoria-item.churn-iminente .categoria-progress { background: var(--churn-iminente); }
 
 .categoria-desc {
     font-size: 12px;
@@ -934,11 +941,6 @@ input[type="file"] {
 .badge-bom {
     background: rgba(52, 211, 153, 0.25);
     color: #34d399;
-}
-
-.badge-risco-alto {
-    background: rgba(239, 68, 68, 0.3);
-    color: #ef4444;
 }
 
 .badge-churn {
