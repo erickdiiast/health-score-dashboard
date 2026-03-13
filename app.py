@@ -44,12 +44,20 @@ BASE_DIR = get_base_dir()
 IS_PYTHONANYWHERE = 'PYTHONANYWHERE_DOMAIN' in os.environ
 IS_FROZEN = getattr(sys, 'frozen', False)
 
+# Quando é executável (frozen), salva o banco em %APPDATA% para persistir dados
+if IS_FROZEN:
+    # Diretório persistente para dados do usuário
+    DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'HealthScoreDashboard')
+    os.makedirs(DATA_DIR, exist_ok=True)
+    DB_PATH = os.path.join(DATA_DIR, "historico.db")
+else:
+    # Desenvolvimento - salva na pasta do projeto
+    DB_PATH = os.path.join(BASE_DIR, "historico.db")
+
 app = FastAPI(title="Health Score Dashboard", version="2.8.0")
 
-# Configuração do banco de dados SQLite
-DB_PATH = os.path.join(BASE_DIR, "historico.db")
-
 print(f"[INFO] Base dir: {BASE_DIR}")
+print(f"[INFO] Data dir: {DATA_DIR if IS_FROZEN else BASE_DIR}")
 print(f"[INFO] DB path: {DB_PATH}")
 print(f"[INFO] Frozen: {IS_FROZEN}")
 print(f"[INFO] PythonAnywhere: {IS_PYTHONANYWHERE}")
