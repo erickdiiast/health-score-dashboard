@@ -963,7 +963,7 @@ def salvar_player_snapshots(df: pd.DataFrame, data_snapshot: str = None, campanh
 def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
     """
     Retorna a evolução histórica de um jogador específico.
-    Útil para analisar flutuação entre clusters e impacto de campanhas.
+    Combina dados do histórico (player_snapshots) com dados do cache atual.
     """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -972,6 +972,7 @@ def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
     # Log para debug
     print(f"[DEBUG] Buscando evolução do jogador {player_id} nos últimos {dias} dias")
     
+    # Busca dados do histórico
     cursor.execute('''
         SELECT * FROM player_snapshots 
         WHERE player_id = ? 
@@ -981,13 +982,46 @@ def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
     
     rows = cursor.fetchall()
     
-    print(f"[DEBUG] Encontrados {len(rows)} registros para o jogador {player_id}")
-    for row in rows:
-        print(f"[DEBUG]   - Data: {row['data']}, Categoria: {row['categoria']}")
+    # Também busca no cache atual (dados de upload recente não salvos no histórico)
+    dados_cache = []
+    if cached_data and 'df' in cached_data:
+        df = cached_data['df']
+        jogador_cache = df[df['player_id'] == player_id]
+        if not jogador_cache.empty:
+            row = jogador_cache.iloc[0]
+            hoje = datetime.now().strftime('%Y-%m-%d')
+            # Verifica se a data de hoje já não está no histórico
+            datas_historico = [r['data'] for r in rows] if rows else []
+            if hoje not in datas_historico:
+                dados_cache.append({
+                    'player_id': player_id,
+                    'data': hoje,
+                    'score_geral': row.get('score_geral', 0),
+                    'score_engajamento': row.get('score_engajamento', 0),
+                    'score_compras': row.get('score_compras', 0),
+                    'categoria': row.get('categoria', 'N/A'),
+                    'campanha_nome': None,
+                    'nivel_vip': row.get('nivel_vip', 1)
+                })
+                print(f"[DEBUG] Adicionado dados do cache para hoje ({hoje})")
     
-    if not rows:
+    # Combina dados do histórico com dados do cache
+    todos_dados = list(rows) + dados_cache
+    
+    # Ordena por data
+    todos_dados.sort(key=lambda x: x['data'] if isinstance(x, sqlite3.Row) else x['data'])
+    
+    print(f"[DEBUG] Total de registros (histórico + cache): {len(todos_dados)}")
+    for d in todos_dados:
+        data = d['data'] if isinstance(d, sqlite3.Row) else d['data']
+        cat = d['categoria'] if isinstance(d, sqlite3.Row) else d['categoria']
+        print(f"[DEBUG]   - Data: {data}, Categoria: {cat}")
+    
+    if not todos_dados:
         conn.close()
         return {"error": "Nenhum histórico encontrado para este jogador"}
+    
+    rows = todos_dados
     
     # Processa evolução
     evolucao = []
