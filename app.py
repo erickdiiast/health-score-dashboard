@@ -187,10 +187,13 @@ def init_db():
 init_db()
 
 # CORS para permitir requisições do frontend
+# allow_origins=["*"] com allow_credentials=True é inválido pelo spec CORS e browsers bloqueiam.
+# Para ambiente local mantemos sem credentials; ao compartilhar em rede interna,
+# substitua "*" pelo origin correto (ex: "http://192.168.1.10:8000").
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -653,26 +656,12 @@ class HealthScoreCalculator:
                 return "💰 Oportunidade VIP"
             else:
                 return "💰 Oportunidade"
-        
+
         # POTENCIAL: Bom engajamento, compras médias
         if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
             return "🎯 Potencial"
-        
-        # Categorização por score geral (alinhada com os clusters do frontend)
-        # Hierarquia clara de 9 categorias principais + 3 de oportunidade
-        
-        # 1. OPORTUNIDADES (alto engajamento + baixas compras) - verifica primeiro
-        if score_engajamento >= 60 and score_compras < 40:
-            if nivel_vip >= 3:
-                return "💰 Oportunidade VIP"
-            else:
-                return "💰 Oportunidade"
-        
-        # 2. POTENCIAL (bom engajamento, compras médias)
-        if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
-            return "🎯 Potencial"
-        
-        # 3. Categorização principal por Score Geral
+
+        # Categorização principal por Score Geral
         if score_geral >= 80:
             return "⭐ Elite"  # Score >= 80
         elif score_geral >= 65:
@@ -982,11 +971,11 @@ def get_evolucao_player(player_id: str, dias: int = 30) -> Dict:
     
     # Busca dados do histórico
     cursor.execute('''
-        SELECT * FROM player_snapshots 
-        WHERE player_id = ? 
-        AND data >= date('now', '-{} days')
+        SELECT * FROM player_snapshots
+        WHERE player_id = ?
+        AND data >= date('now', ? || ' days')
         ORDER BY data ASC
-    '''.format(dias), (player_id,))
+    ''', (player_id, f'-{dias}'))
     
     rows = cursor.fetchall()
     
@@ -1122,37 +1111,37 @@ def get_players_com_flutuacao(cluster_origem: str = None, cluster_destino: str =
     # Busca todos os jogadores com histórico no período
     cursor.execute('''
         SELECT player_id, COUNT(*) as total_registros
-        FROM player_snapshots 
-        WHERE data >= date('now', '-{} days')
+        FROM player_snapshots
+        WHERE data >= date('now', ? || ' days')
         GROUP BY player_id
         HAVING total_registros >= 2
-    '''.format(dias))
-    
+    ''', (f'-{dias}',))
+
     players = cursor.fetchall()
-    
+
     resultado = []
-    
+
     for player in players:
         player_id = player['player_id']
-        
+
         # Busca primeiro e último registro do período
         cursor.execute('''
-            SELECT * FROM player_snapshots 
-            WHERE player_id = ? 
-            AND data >= date('now', '-{} days')
+            SELECT * FROM player_snapshots
+            WHERE player_id = ?
+            AND data >= date('now', ? || ' days')
             ORDER BY data ASC
             LIMIT 1
-        '''.format(dias), (player_id,))
-        
+        ''', (player_id, f'-{dias}'))
+
         primeiro = cursor.fetchone()
-        
+
         cursor.execute('''
-            SELECT * FROM player_snapshots 
-            WHERE player_id = ? 
-            AND data >= date('now', '-{} days')
+            SELECT * FROM player_snapshots
+            WHERE player_id = ?
+            AND data >= date('now', ? || ' days')
             ORDER BY data DESC
             LIMIT 1
-        '''.format(dias), (player_id,))
+        ''', (player_id, f'-{dias}'))
         
         ultimo = cursor.fetchone()
         
@@ -1579,10 +1568,10 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                                                           'score_login', 'score_engajamento', 
                                                           'score_compras', 'score_geral', 
                                                           'categoria', 'acao_sugerida']].to_dict('records'),
-        "jogadores_risco_receita": df[df['categoria'] == 'Risco: Queda em Receita'][[id_col, 
+        "jogadores_risco_receita": df[df['categoria'] == '🚨 Risco: Queda Receita'][[id_col,
                                                                           'score_geral', 'score_engajamento', 'score_compras',
                                                                           'categoria', 'acao_sugerida']].head(50).to_dict('records'),
-        "jogadores_risco_engajamento": df[df['categoria'] == 'Risco: Queda em Engajamento'][[id_col, 
+        "jogadores_risco_engajamento": df[df['categoria'] == '🚨 Risco: Queda Engajamento'][[id_col,
                                                                           'score_geral', 'score_engajamento', 'score_compras',
                                                                           'categoria', 'acao_sugerida']].head(50).to_dict('records'),
     }
@@ -1691,7 +1680,14 @@ async def upload_file(file: UploadFile = File(...)):
         contents = await file.read()
         
         if file_type == 'csv':
-            df = pd.read_csv(io.StringIO(contents.decode('utf-8')), sep=None, engine='python')
+            for encoding in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
+                try:
+                    df = pd.read_csv(io.StringIO(contents.decode(encoding)), sep=None, engine='python')
+                    break
+                except (UnicodeDecodeError, Exception):
+                    continue
+            else:
+                raise ValueError("Não foi possível decodificar o CSV. Salve o arquivo em UTF-8 e tente novamente.")
         else:
             df = pd.read_excel(io.BytesIO(contents))
         
@@ -1989,7 +1985,7 @@ async def salvar_historico(request: Dict[str, Any]):
             # Reprocessa os dados com a data de referência correta
             df, params = processar_dados_jogadores(df_original.copy(), data_referencia)
             # Recalcula o resumo com os novos scores
-            resumo = gerar_resumo(df, params)
+            resumo = gerar_resumo_dashboard(df, params)
             print(f"[DEBUG] Scores recalculados para data: {data_usar}")
         except Exception as e:
             print(f"[WARN] Erro ao recalcular scores: {e}. Usando dados originais.")
@@ -2095,13 +2091,13 @@ async def get_resumo_executivo(
             "message": "Nenhum histórico encontrado"
         }
     
-    # Último dia disponível
-    ultimo = historico[0]
-    
+    # Último dia disponível (historico é ordenado ASC, então o mais recente é o último)
+    ultimo = historico[-1]
+
     # Calcular variações se houver histórico anterior
     variacoes = {}
     if len(historico) > 1:
-        anterior = historico[1]
+        anterior = historico[-2]
         variacoes = {
             'total_jogadores': round(ultimo['total_jogadores'] - anterior['total_jogadores'], 0),
             'percentual_ativos': round(ultimo['percentual_ativos'] - anterior['percentual_ativos'], 2),
@@ -2211,8 +2207,26 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nive
     cursor = conn.cursor()
     
     # Constrói a query base
-    query = '''
-        SELECT 
+    # Constrói filtros opcionais e lista de parâmetros de forma segura
+    filtros_where = []
+    params: list = [f'-{dias}', f'-{dias}']  # dois placeholders de data na query base
+
+    if regiao and regiao != 'all':
+        filtros_where.append("ps.regiao = ?")
+        params.append(regiao)
+
+    if nivel_vip and nivel_vip != 'all':
+        try:
+            vip_int = int(nivel_vip)
+            filtros_where.append("ps.nivel_vip = ?")
+            params.append(vip_int)
+        except (ValueError, TypeError):
+            pass
+
+    filtro_sql = ("AND " + " AND ".join(filtros_where)) if filtros_where else ""
+
+    query = f'''
+        SELECT
             ps.player_id,
             ps.data,
             ps.score_geral,
@@ -2233,40 +2247,14 @@ def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nive
         INNER JOIN (
             SELECT player_id, MAX(data) as max_data
             FROM player_snapshots
-            WHERE data >= date('now', '-{} days')
+            WHERE data >= date('now', ? || ' days')
             GROUP BY player_id
         ) latest ON ps.player_id = latest.player_id AND ps.data = latest.max_data
-        WHERE ps.data >= date('now', '-{} days')
-    '''.format(dias, dias)
-    
-    # Adiciona filtros se fornecidos
-    params = []
-    filtros_where = []
-    
-    if regiao and regiao != 'all':
-        filtros_where.append("ps.regiao = ?")
-        params.append(regiao)
-    
-    if nivel_vip and nivel_vip != 'all':
-        try:
-            vip_int = int(nivel_vip)
-            filtros_where.append("ps.nivel_vip = ?")
-            params.append(vip_int)
-        except (ValueError, TypeError):
-            pass  # Ignora se não for um número válido
-    
-    # Adiciona os filtros à query
-    if filtros_where:
-        # Substitui o WHERE inicial pelos filtros + condição original de data
-        query = query.replace(
-            "WHERE ps.data >= date('now',",
-            "WHERE " + " AND ".join(filtros_where) + " AND ps.data >= date('now',"
-        )
-    
-    if params:
-        cursor.execute(query, tuple(params))
-    else:
-        cursor.execute(query)
+        WHERE ps.data >= date('now', ? || ' days')
+        {filtro_sql}
+    '''
+
+    cursor.execute(query, tuple(params))
     
     rows = cursor.fetchall()
     

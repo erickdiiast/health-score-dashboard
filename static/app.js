@@ -127,14 +127,14 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
             media_saude_compras: analise.score_compras_medio,
             media_pontuacao_geral: analise.score_geral_medio,
             distribuicao_categorias: analise.distribuicao_categorias,
-            top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
+            top_jogadores: [...dados].sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
             jogadores_risco_receita: dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50),
             jogadores_risco_engajamento: dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50),
             regiao_atual: regiao,
             regiao_nome: analise.nome
         };
     }
-    
+
     // Caso contrário, calcula do lado do cliente
     const total = dados.length;
     if (total === 0) return resumoOriginal;
@@ -177,7 +177,7 @@ function gerarResumoFiltrado(dados, resumoOriginal, regiao) {
             risco_receita: parseFloat((riscoReceita / total * 100).toFixed(2)),
             risco_engajamento: parseFloat((riscoEngajamento / total * 100).toFixed(2))
         },
-        top_jogadores: dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
+        top_jogadores: [...dados].sort((a, b) => b.score_geral - a.score_geral).slice(0, 10),
         jogadores_risco_receita: dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50),
         jogadores_risco_engajamento: dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50),
         regiao_atual: regiao,
@@ -321,7 +321,7 @@ function updateDashboardWithData(resumo, dados) {
     }
     
     // Atualiza tabelas - calcula a partir dos dados filtrados
-    const topJogadores = dados.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
+    const topJogadores = [...dados].sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
     const jogadoresRiscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
     const jogadoresRiscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
     
