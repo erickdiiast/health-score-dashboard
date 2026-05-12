@@ -637,55 +637,44 @@ class HealthScoreCalculator:
     
     def categorizar_jogador(self, row: pd.Series) -> str:
         """
-        Categoriza jogador com granularidade para ações de CRM:
-        
-        Hierarquia de categorização:
-        1. Primeiro verifica oportunidades (alto engajamento + baixas compras)
-        2. Depois categoriza por score geral
-        3. Por fim, identifica tipo de risco
+        Categoriza jogador via matriz 2D independente: Engajamento × Receita.
+
+        Engajamento e compras são dimensões independentes (correlação ~0.2 na base real).
+        Tratá-las separadamente permite identificar o TIPO de risco e a ação correta.
+
+        Eixos:
+          alto  → score >= 60
+          médio → score 30–59
+          baixo → score <  30
+
+        Matriz 3×3:
+          eng\rec  alto         médio          baixo
+          alto   │ ⭐ Elite   │ 🏆 VIP Ativo  │ 💰 Oportunidade (VIP)
+          médio  │ 📈 Bom     │ 📊 Estável    │ 🎯 Potencial
+          baixo  │ 🚨 Risco↓Eng│ 🚨 Risco↓Rec │ 💎 Churn Iminente
         """
-        score_geral = row.get('score_geral', 50)
-        score_compras = row.get('score_compras', 0)
-        score_engajamento = row.get('score_engajamento', 0)
-        nivel_vip = row.get('nivel_vip', 1)
-        
-        # OPORTUNIDADES: Alto engajamento mas compras baixas
-        # Estes são prioritários para CRM pois têm potencial
-        if score_engajamento >= 60 and score_compras < 40:
-            if nivel_vip >= 3:
-                return "💰 Oportunidade VIP"
-            else:
-                return "💰 Oportunidade"
+        eng  = row.get('score_engajamento', 0)
+        comp = row.get('score_compras', 0)
+        vip  = row.get('nivel_vip', 1)
 
-        # POTENCIAL: Bom engajamento, compras médias
-        if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
-            return "🎯 Potencial"
+        status_eng = 'alto' if eng  >= 60 else ('médio' if eng  >= 30 else 'baixo')
+        status_rec = 'alto' if comp >= 60 else ('médio' if comp >= 30 else 'baixo')
 
-        # Categorização principal por Score Geral
-        if score_geral >= 80:
-            return "⭐ Elite"  # Score >= 80
-        elif score_geral >= 65:
-            return "🏆 VIP Ativo"  # Score 65-79
-        elif score_geral >= 50:
-            return "📈 Bom"  # Score 50-64
-        elif score_geral >= 40:
-            return "📊 Estável"  # Score 40-49
-        elif score_geral >= 25:
-            return "⚠️ Atenção"  # Score 25-39
-        elif score_geral >= 15:
-            # Risco: Score 15-24 - distribui entre os dois tipos de risco
-            if score_compras < score_engajamento:
-                return "🚨 Risco: Queda Receita"
-            else:
-                return "🚨 Risco: Queda Engajamento"
-        else:
-            # Score < 15 = Crítico
-            if score_compras < 15 and score_engajamento < 20:
-                return "💎 Churn Iminente"  # Ambos críticos
-            elif score_compras < score_engajamento:
-                return "🚨 Risco: Queda Receita"
-            else:
-                return "🚨 Risco: Queda Engajamento"
+        if status_eng == 'alto':
+            if status_rec == 'alto':  return '⭐ Elite'
+            if status_rec == 'médio': return '🏆 VIP Ativo'
+            # alto eng + baixa rec → oportunidade de conversão
+            return '💰 Oportunidade VIP' if vip >= 3 else '💰 Oportunidade'
+
+        if status_eng == 'médio':
+            if status_rec == 'alto':  return '📈 Bom'
+            if status_rec == 'médio': return '📊 Estável'
+            return '🎯 Potencial'  # eng médio + rec baixa → nutrir
+
+        # eng baixo
+        if status_rec == 'alto':  return '🚨 Risco: Queda Engajamento'  # compra mas para de jogar
+        if status_rec == 'médio': return '🚨 Risco: Queda Receita'
+        return '💎 Churn Iminente'
 
 
 def get_expectativa_vip(nivel: int) -> Dict:
@@ -816,7 +805,24 @@ def processar_dados_jogadores(df: pd.DataFrame, data_referencia: datetime = None
         df['vip_nome'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['nome'])
         df['vip_cor'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['cor'])
         df['vip_icone'] = df['nivel_vip'].apply(lambda x: get_vip_info(int(x) if pd.notna(x) else 0)['icone'])
-    
+
+    # ── Novos campos: eixos independentes e urgência de recontato ──────────────
+    df['status_engajamento'] = df['score_engajamento'].apply(calcular_status_eixo)
+    df['status_receita']     = df['score_compras'].apply(calcular_status_eixo)
+
+    hoje_dt = data_referencia if data_referencia else datetime.now()
+    if 'ultima_compra' in df.columns:
+        urg = df['ultima_compra'].apply(lambda x: calcular_urgencia_compra(x, hoje_dt))
+        df['urgencia_nivel'] = urg.apply(lambda u: u['nivel'])
+        df['urgencia_label'] = urg.apply(lambda u: u['label'])
+        df['urgencia_cor']   = urg.apply(lambda u: u['cor'])
+        df['dias_sem_compra'] = urg.apply(lambda u: u['dias'])
+    else:
+        df['urgencia_nivel'] = 'monitorar'
+        df['urgencia_label'] = '👀 Monitorar'
+        df['urgencia_cor']   = '#f59e0b'
+        df['dias_sem_compra'] = 0
+
     return df, params
 
 
@@ -1575,7 +1581,53 @@ def gerar_resumo_dashboard(df: pd.DataFrame, params: Dict) -> Dict[str, Any]:
                                                                           'score_geral', 'score_engajamento', 'score_compras',
                                                                           'categoria', 'acao_sugerida']].head(50).to_dict('records'),
     }
-    
+
+    # ── Alertas priorizados do dia ─────────────────────────────────────────────
+    alertas_cols = [id_col, 'score_engajamento', 'score_compras', 'score_geral',
+                    'categoria', 'nivel_vip', 'urgencia_label', 'urgencia_cor',
+                    'dias_sem_compra', 'acao_sugerida']
+    alertas_cols = [c for c in alertas_cols if c in df.columns]
+
+    # Grupo 1: sem compra há > 7d, ordenado por VIP desc → mais valiosos primeiro
+    sem_compra = df[(df.get('dias_sem_compra', pd.Series(0, index=df.index)) > 7)]
+    resumo["alertas_sem_compra"] = (
+        sem_compra.sort_values(['nivel_vip', 'score_engajamento'], ascending=[False, False])
+        [alertas_cols].head(50).to_dict('records')
+    ) if 'dias_sem_compra' in df.columns else []
+
+    # Grupo 2: oportunidade de conversão — alto engajamento + 0 compras
+    oportunidade = df[
+        (df['score_engajamento'] >= 60) &
+        (df.get('qtd_compras_7d', pd.Series(0, index=df.index)) == 0)
+    ] if 'qtd_compras_7d' in df.columns else df[df['categoria'].isin(['💰 Oportunidade VIP', '💰 Oportunidade'])]
+    resumo["alertas_oportunidade"] = (
+        oportunidade.sort_values(['nivel_vip', 'score_engajamento'], ascending=[False, False])
+        [alertas_cols].head(50).to_dict('records')
+    )
+
+    # Grupo 3: churn iminente — prioridade máxima de ligação
+    churn = df[df['categoria'] == '💎 Churn Iminente']
+    resumo["alertas_churn"] = (
+        churn.sort_values(['nivel_vip', 'dias_sem_compra'], ascending=[False, False])
+        [alertas_cols].head(50).to_dict('records')
+    ) if 'dias_sem_compra' in df.columns else []
+
+    # Contagem por urgência
+    if 'urgencia_nivel' in df.columns:
+        urg_counts = df['urgencia_nivel'].value_counts().to_dict()
+        resumo["contagem_urgencia"] = {
+            "ativo":     urg_counts.get('ativo', 0),
+            "monitorar": urg_counts.get('monitorar', 0),
+            "urgente":   urg_counts.get('urgente', 0),
+            "critico":   urg_counts.get('critico', 0),
+        }
+
+    # Dados do quadrante: amostra de até 500 pontos para o scatter plot
+    quadrante_cols = [id_col, 'score_engajamento', 'score_compras', 'categoria',
+                      'nivel_vip', 'urgencia_cor']
+    quadrante_cols = [c for c in quadrante_cols if c in df.columns]
+    resumo["dados_quadrante"] = df[quadrante_cols].head(500).to_dict('records')
+
     # Adiciona análise por região
     if 'regiao' in df.columns:
         resumo["analise_regiao"] = {}
@@ -1952,6 +2004,29 @@ async def export_excel():
     )
 
 
+# ========== ENDPOINT DE ALERTAS ==========
+
+@app.get("/api/alertas")
+async def get_alertas():
+    """
+    Retorna os três grupos de alertas priorizados do dia:
+    1. sem_compra   – jogadores sem compra há > 7d (risco de receita)
+    2. oportunidade – alto engajamento + 0 compras (converter agora)
+    3. churn        – churn iminente (prioridade máxima)
+    """
+    if not cached_data:
+        raise HTTPException(status_code=404, detail="Nenhum dado processado. Faça upload primeiro.")
+
+    resumo = cached_data['resumo']
+    return JSONResponse(clean_for_json({
+        "success": True,
+        "sem_compra":    resumo.get("alertas_sem_compra", []),
+        "oportunidade":  resumo.get("alertas_oportunidade", []),
+        "churn":         resumo.get("alertas_churn", []),
+        "contagem_urgencia": resumo.get("contagem_urgencia", {}),
+    }))
+
+
 # ========== ENDPOINTS DE HISTÓRICO ==========
 
 @app.post("/api/historico/salvar")
@@ -2143,57 +2218,60 @@ async def get_resumo_executivo(
 
 # ========== ENDPOINTS DE ACOMPANHAMENTO INDIVIDUAL ==========
 
+def calcular_status_eixo(score: float) -> str:
+    """Classifica um score em alto/médio/baixo (mesmos limiares da matriz 2D)."""
+    if score >= 60: return 'alto'
+    if score >= 30: return 'médio'
+    return 'baixo'
+
+
+def calcular_urgencia_compra(ultima_compra, hoje: datetime = None) -> Dict:
+    """
+    Classifica urgência de recontato baseada em dias desde a última compra.
+    Retorna dict com nivel, dias e cor para exibição no frontend.
+    """
+    hoje = hoje or datetime.now()
+    try:
+        dt = pd.to_datetime(ultima_compra)
+        dias = max(0, (hoje - dt).days)
+    except Exception:
+        dias = 999
+
+    if dias <= 7:
+        return {'nivel': 'ativo',     'dias': dias, 'cor': '#10b981', 'label': '✅ Ativo'}
+    if dias <= 30:
+        return {'nivel': 'monitorar', 'dias': dias, 'cor': '#f59e0b', 'label': '👀 Monitorar'}
+    if dias <= 90:
+        return {'nivel': 'urgente',   'dias': dias, 'cor': '#f97316', 'label': '⚠️ Urgente'}
+    return     {'nivel': 'critico',   'dias': dias, 'cor': '#ef4444', 'label': '🚨 Crítico'}
+
+
 def recalcular_categoria(score_geral: float, score_engajamento: float, score_compras: float, nivel_vip: int = 1) -> str:
     """
-    Recalcula a categoria com base nos scores.
-    Usa a mesma lógica do HealthScoreCalculator.categorizar_jogador
+    Recalcula categoria usando a mesma matriz 2D do HealthScoreCalculator.categorizar_jogador.
+    Mantido para uso em consultas ao banco histórico.
     """
-    # Garante que os scores sejam numéricos
     try:
-        score_geral = float(score_geral) if score_geral is not None else 0
-        score_engajamento = float(score_engajamento) if score_engajamento is not None else 0
-        score_compras = float(score_compras) if score_compras is not None else 0
-        nivel_vip = int(nivel_vip) if nivel_vip is not None else 1
+        eng  = float(score_engajamento) if score_engajamento is not None else 0
+        comp = float(score_compras)     if score_compras     is not None else 0
+        vip  = int(nivel_vip)           if nivel_vip         is not None else 1
     except (ValueError, TypeError):
-        score_geral = score_engajamento = score_compras = 0
-        nivel_vip = 1
-    
-    # OPORTUNIDADES (alto engajamento + baixas compras)
-    if score_engajamento >= 60 and score_compras < 40:
-        if nivel_vip >= 3:
-            return "💰 Oportunidade VIP"
-        else:
-            return "💰 Oportunidade"
-    
-    # POTENCIAL (bom engajamento, compras médias)
-    if score_engajamento >= 40 and score_compras >= 30 and score_compras < 50:
-        return "🎯 Potencial"
-    
-    # Categorização principal por Score Geral
-    if score_geral >= 80:
-        return "⭐ Elite"
-    elif score_geral >= 65:
-        return "🏆 VIP Ativo"
-    elif score_geral >= 50:
-        return "📈 Bom"
-    elif score_geral >= 40:
-        return "📊 Estável"
-    elif score_geral >= 25:
-        return "⚠️ Atenção"
-    elif score_geral >= 15:
-        # Risco moderado (Score 15-24) - distribui entre os dois tipos de risco
-        if score_compras < score_engajamento:
-            return "🚨 Risco: Queda Receita"
-        else:
-            return "🚨 Risco: Queda Engajamento"
-    else:
-        # Score < 15 = Crítico
-        if score_compras < 15 and score_engajamento < 20:
-            return "💎 Churn Iminente"
-        elif score_compras < score_engajamento:
-            return "🚨 Risco: Queda Receita"
-        else:
-            return "🚨 Risco: Queda Engajamento"
+        eng = comp = 0; vip = 1
+
+    status_eng = calcular_status_eixo(eng)
+    status_rec = calcular_status_eixo(comp)
+
+    if status_eng == 'alto':
+        if status_rec == 'alto':  return '⭐ Elite'
+        if status_rec == 'médio': return '🏆 VIP Ativo'
+        return '💰 Oportunidade VIP' if vip >= 3 else '💰 Oportunidade'
+    if status_eng == 'médio':
+        if status_rec == 'alto':  return '📈 Bom'
+        if status_rec == 'médio': return '📊 Estável'
+        return '🎯 Potencial'
+    if status_rec == 'alto':  return '🚨 Risco: Queda Engajamento'
+    if status_rec == 'médio': return '🚨 Risco: Queda Receita'
+    return '💎 Churn Iminente'
 
 
 def get_ultimo_registro_todos_jogadores(dias: int = 90, regiao: str = None, nivel_vip: int = None) -> List[Dict]:

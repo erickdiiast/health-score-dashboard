@@ -8,6 +8,7 @@ let scoresChart = null;
 let vipChart = null;
 let vipScoresChart = null;
 let benchmarksChart = null;
+let quadranteChart = null;
 
 // Dados em cache
 let cachedResumo = null;
@@ -291,11 +292,12 @@ function calcularAnaliseVIP(dados) {
  */
 function updateDashboardWithData(resumo, dados) {
     // Limpa gráficos anteriores
-    if (categoriaChart) { categoriaChart.destroy(); categoriaChart = null; }
-    if (scoresChart) { scoresChart.destroy(); scoresChart = null; }
-    if (vipChart) { vipChart.destroy(); vipChart = null; }
-    if (vipScoresChart) { vipScoresChart.destroy(); vipScoresChart = null; }
+    if (categoriaChart)  { categoriaChart.destroy();  categoriaChart  = null; }
+    if (scoresChart)     { scoresChart.destroy();     scoresChart     = null; }
+    if (vipChart)        { vipChart.destroy();        vipChart        = null; }
+    if (vipScoresChart)  { vipScoresChart.destroy();  vipScoresChart  = null; }
     if (benchmarksChart) { benchmarksChart.destroy(); benchmarksChart = null; }
+    if (quadranteChart)  { quadranteChart.destroy();  quadranteChart  = null; }
     
     // Calcula estatísticas e VIP específicos da região atual
     const estatisticas = calcularEstatisticas(dados);
@@ -324,11 +326,20 @@ function updateDashboardWithData(resumo, dados) {
     const topJogadores = [...dados].sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
     const jogadoresRiscoReceita = dados.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
     const jogadoresRiscoEngajamento = dados.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
-    
+
     updateTopJogadores(topJogadores);
     updateJogadoresRiscoReceita(jogadoresRiscoReceita);
     updateJogadoresRiscoEngajamento(jogadoresRiscoEngajamento);
-    
+
+    // Urgência e Alertas
+    if (resumo.contagem_urgencia) updateUrgencia(resumo.contagem_urgencia);
+    renderAlertas(resumo);
+
+    // Matriz quadrante
+    if (resumo.dados_quadrante && resumo.dados_quadrante.length > 0) {
+        renderQuadranteChart(resumo.dados_quadrante);
+    }
+
     // Atualiza seção de clusters
     updateClustersSection(dados);
 }
@@ -1073,7 +1084,7 @@ function updateDashboard(resumo, dadosCompletos) {
     
     // Atualiza tabelas - calcula a partir dos dados filtrados (com verificação de segurança)
     if (dadosParaMostrar && Array.isArray(dadosParaMostrar)) {
-        const topJogadores = dadosParaMostrar.sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
+        const topJogadores = [...dadosParaMostrar].sort((a, b) => b.score_geral - a.score_geral).slice(0, 10);
         const jogadoresRiscoReceita = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Receita').slice(0, 50);
         const jogadoresRiscoEngajamento = dadosParaMostrar.filter(j => j.categoria === '🚨 Risco: Queda Engajamento').slice(0, 50);
         
@@ -1151,6 +1162,195 @@ async function handleFileUpload(event) {
     
     // Limpa o input
     event.target.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  URGÊNCIA DE RECONTATO
+// ═══════════════════════════════════════════════════════════
+
+function updateUrgencia(contagem) {
+    const el = (id) => document.getElementById(id);
+    if (el('urg-ativo'))     el('urg-ativo').textContent     = contagem.ativo     ?? '-';
+    if (el('urg-monitorar')) el('urg-monitorar').textContent = contagem.monitorar ?? '-';
+    if (el('urg-urgente'))   el('urg-urgente').textContent   = contagem.urgente   ?? '-';
+    if (el('urg-critico'))   el('urg-critico').textContent   = contagem.critico   ?? '-';
+}
+
+function getUrgenciaHtml(nivel, dias) {
+    const cfg = {
+        ativo:     { cor: '#10b981', label: '✅ Ativo' },
+        monitorar: { cor: '#f59e0b', label: '👀 Monitorar' },
+        urgente:   { cor: '#f97316', label: '⚠️ Urgente' },
+        critico:   { cor: '#ef4444', label: '🚨 Crítico' },
+    };
+    const c = cfg[nivel] || cfg['monitorar'];
+    const diasTxt = (dias !== undefined && dias !== null) ? ` (${dias}d)` : '';
+    return `<span class="badge-urgencia" style="background:${c.cor}22;color:${c.cor};border:1px solid ${c.cor}55">${c.label}${diasTxt}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ALERTAS DO DIA
+// ═══════════════════════════════════════════════════════════
+
+function renderAlertas(resumo) {
+    const nomesVIP = { 1: 'Ametista', 2: 'Topázio', 3: 'Esmeralda', 4: 'Opala', 5: 'Berilo' };
+    const coresVIP = { 1: '#9B59B6', 2: '#F39C12', 3: '#27AE60', 4: '#E74C3C', 5: '#3498DB' };
+
+    function fillerRow(cols, msg) {
+        return `<tr><td colspan="${cols}" style="text-align:center;color:#64748b;padding:12px">${msg}</td></tr>`;
+    }
+
+    function buildRows(lista, showAcao) {
+        if (!lista || lista.length === 0) return fillerRow(5, 'Nenhum jogador nesta categoria no momento');
+        return lista.map(j => {
+            const pid  = j.player_id || Object.values(j)[0];
+            const vip  = j.nivel_vip || '-';
+            const cor  = coresVIP[vip] || '#64748b';
+            const nome = nomesVIP[vip] || `VIP ${vip}`;
+            const vipBadge = vip !== '-'
+                ? `<span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44">${nome}</span>`
+                : '-';
+            const eng  = j.score_engajamento !== undefined ? formatNumber(j.score_engajamento) : '-';
+            const dias = j.dias_sem_compra !== undefined ? j.dias_sem_compra : '-';
+            const urg  = getUrgenciaHtml(j.urgencia_nivel || 'monitorar', j.dias_sem_compra);
+            const acao = showAcao
+                ? `<span style="font-size:0.82em;color:#94a3b8">${j.acao_sugerida || '-'}</span>`
+                : urg;
+            return `<tr>
+                <td><strong>${pid}</strong></td>
+                <td>${vipBadge}</td>
+                <td>${eng}</td>
+                <td>${dias}d</td>
+                <td>${acao}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    const sc  = resumo.alertas_sem_compra   || [];
+    const op  = resumo.alertas_oportunidade  || [];
+    const ch  = resumo.alertas_churn         || [];
+
+    const scBody  = document.getElementById('alerta-sem-compra-body');
+    const opBody  = document.getElementById('alerta-oportunidade-body');
+    const chBody  = document.getElementById('alerta-churn-body');
+    const scCount = document.getElementById('alerta-sem-compra-count');
+    const opCount = document.getElementById('alerta-oportunidade-count');
+    const chCount = document.getElementById('alerta-churn-count');
+
+    if (scBody)  scBody.innerHTML  = buildRows(sc, false);
+    if (opBody)  opBody.innerHTML  = buildRows(op, true);
+    if (chBody)  chBody.innerHTML  = buildRows(ch, true);
+    if (scCount) scCount.textContent = sc.length;
+    if (opCount) opCount.textContent = op.length;
+    if (chCount) chCount.textContent = ch.length;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MATRIZ QUADRANTE – Scatter Engajamento × Receita
+// ═══════════════════════════════════════════════════════════
+
+function renderQuadranteChart(dados) {
+    const canvas = document.getElementById('quadranteChart');
+    if (!canvas) return;
+
+    if (quadranteChart) { quadranteChart.destroy(); quadranteChart = null; }
+
+    // Agrupa pontos por categoria para colorir diferente
+    const grupos = {
+        elite:       { label: '⭐ Elite',             cor: '#fbbf24', pts: [] },
+        bom:         { label: '🏆 VIP Ativo / 📈 Bom', cor: '#10b981', pts: [] },
+        estavel:     { label: '📊 Estável / 🎯 Pot.',  cor: '#60a5fa', pts: [] },
+        oport:       { label: '💰 Oportunidade',        cor: '#a78bfa', pts: [] },
+        risco:       { label: '🚨 Risco',               cor: '#f97316', pts: [] },
+        churn:       { label: '💎 Churn Iminente',      cor: '#ef4444', pts: [] },
+    };
+
+    function categoriaToGrupo(cat) {
+        if (cat === '⭐ Elite')                        return 'elite';
+        if (cat === '🏆 VIP Ativo' || cat === '📈 Bom') return 'bom';
+        if (cat === '📊 Estável'   || cat === '🎯 Potencial') return 'estavel';
+        if (cat && cat.includes('Oportunidade'))       return 'oport';
+        if (cat === '💎 Churn Iminente')               return 'churn';
+        return 'risco';
+    }
+
+    dados.forEach(j => {
+        const g = categoriaToGrupo(j.categoria);
+        grupos[g].pts.push({
+            x: j.score_engajamento || 0,
+            y: j.score_compras     || 0,
+            pid: j.player_id,
+            cat: j.categoria
+        });
+    });
+
+    const datasets = Object.values(grupos)
+        .filter(g => g.pts.length > 0)
+        .map(g => ({
+            label: g.label,
+            data: g.pts,
+            backgroundColor: g.cor + 'bb',
+            borderColor: g.cor,
+            borderWidth: 1,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+        }));
+
+    quadranteChart = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const p = ctx.raw;
+                            return [`Player: ${p.pid || '?'}`, `Eng: ${p.x.toFixed(1)}  Rec: ${p.y.toFixed(1)}`, p.cat || ''];
+                        }
+                    }
+                },
+                // Linhas de quadrante via annotation plugin (fallback: desenhamos via afterDraw)
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Score Engajamento →', color: '#94a3b8' },
+                    min: 0, max: 100,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y: {
+                    title: { display: true, text: 'Score Receita →', color: '#94a3b8' },
+                    min: 0, max: 100,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#94a3b8' }
+                }
+            }
+        },
+        plugins: [{
+            id: 'quadrantLines',
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom }, scales: { x, y } } = chart;
+                const x30 = x.getPixelForValue(30);
+                const x60 = x.getPixelForValue(60);
+                const y30 = y.getPixelForValue(30);
+                const y60 = y.getPixelForValue(60);
+                ctx.save();
+                ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+                ctx.setLineDash([6, 4]);
+                ctx.lineWidth = 1.5;
+                [[x30, x30, top, bottom], [x60, x60, top, bottom]].forEach(([x1,x2,y1,y2]) => {
+                    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                });
+                [[left, right, y30, y30], [left, right, y60, y60]].forEach(([x1,x2,y1,y2]) => {
+                    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                });
+                ctx.restore();
+            }
+        }]
+    });
 }
 
 /**

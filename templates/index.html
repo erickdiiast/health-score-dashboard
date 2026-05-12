@@ -306,13 +306,140 @@
                     <section class="charts-section">
                         <div class="chart-row">
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Categoria <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Distribuição percentual dos jogadores em 6 categorias baseadas no Health Score: Elite (≥80), Muito Bom (65-79), Estável (50-64), Baixo (35-49), Risco Receita (<35, compras < engajamento) e Risco Engajamento (<35, engajamento ≤ compras).</span></span></h4>
+                                <h4><i class="fas fa-chart-pie"></i> Distribuição por Categoria <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Distribuição percentual dos jogadores nas categorias definidas pela matriz Engajamento × Receita.</span></span></h4>
                                 <canvas id="categoriaChart"></canvas>
                             </div>
                             <div class="chart-card">
-                                <h4><i class="fas fa-chart-bar"></i> Composição do Health Score <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Visão detalhada da composição do Health Score médio da base: Score de Login (baseado em último acesso e frequência), Score de Engajamento (atividades nos últimos 3 dias) e Score de Compras (quantidade, ticket e recência).</span></span></h4>
+                                <h4><i class="fas fa-chart-bar"></i> Composição do Health Score <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Visão detalhada do score médio da base: Engajamento (atividades 3d) e Compras (quantidade, ticket e recência 7d).</span></span></h4>
                                 <canvas id="scoresChart"></canvas>
                             </div>
+                        </div>
+                    </section>
+
+                    <!-- Matriz Quadrante Engajamento × Receita -->
+                    <section class="quadrante-section">
+                        <h3><i class="fas fa-th"></i> Matriz Engajamento × Receita
+                            <span class="info-tooltip tooltip-wide"><span class="tooltip-text">Cada jogador posicionado pelos dois eixos independentes. Quadrante superior-direito = Elite. Superior-esquerdo = Oportunidade de conversão. Inferior-direito = Risco queda de engajamento. Inferior-esquerdo = Churn iminente.</span></span>
+                        </h3>
+                        <div class="quadrante-wrapper">
+                            <div class="quadrante-labels-y">
+                                <span>Alta Receita</span>
+                                <span>Baixa Receita</span>
+                            </div>
+                            <div class="quadrante-chart-area">
+                                <div class="quadrante-labels-top">
+                                    <span class="qlabel qlabel-tl">💰 Oportunidade<br><small>Engajar → Converter</small></span>
+                                    <span class="qlabel qlabel-tr">⭐ Elite<br><small>Proteger + Upsell</small></span>
+                                </div>
+                                <canvas id="quadranteChart" height="380"></canvas>
+                                <div class="quadrante-labels-bottom">
+                                    <span class="qlabel qlabel-bl">💎 Churn Iminente<br><small>Ligação urgente</small></span>
+                                    <span class="qlabel qlabel-br">🚨 Risco Eng.<br><small>Compra mas desengaja</small></span>
+                                </div>
+                                <div class="quadrante-axis-x">
+                                    <span>← Baixo Engajamento</span>
+                                    <span>Alto Engajamento →</span>
+                                </div>
+                            </div>
+                            <div class="quadrante-legenda">
+                                <div class="qleg-item"><span class="qleg-dot" style="background:#fbbf24"></span> ⭐ Elite</div>
+                                <div class="qleg-item"><span class="qleg-dot" style="background:#10b981"></span> 🏆 VIP Ativo / 📈 Bom</div>
+                                <div class="qleg-item"><span class="qleg-dot" style="background:#60a5fa"></span> 📊 Estável / 🎯 Potencial</div>
+                                <div class="qleg-item"><span class="qleg-dot" style="background:#a78bfa"></span> 💰 Oportunidade</div>
+                                <div class="qleg-item"><span class="qleg-dot" style="background:#ef4444"></span> 🚨 Risco / 💎 Churn</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Urgência de Recontato -->
+                    <section class="urgencia-section">
+                        <h3><i class="fas fa-clock"></i> Urgência de Recontato por Compras</h3>
+                        <div class="urgencia-grid">
+                            <div class="urgencia-card urgencia-ativo">
+                                <div class="urgencia-icon">✅</div>
+                                <div class="urgencia-info">
+                                    <span class="urgencia-label">Ativo</span>
+                                    <span class="urgencia-desc">Comprou em ≤ 7d</span>
+                                    <span class="urgencia-count" id="urg-ativo">-</span>
+                                </div>
+                            </div>
+                            <div class="urgencia-card urgencia-monitorar">
+                                <div class="urgencia-icon">👀</div>
+                                <div class="urgencia-info">
+                                    <span class="urgencia-label">Monitorar</span>
+                                    <span class="urgencia-desc">8 – 30 dias</span>
+                                    <span class="urgencia-count" id="urg-monitorar">-</span>
+                                </div>
+                            </div>
+                            <div class="urgencia-card urgencia-urgente">
+                                <div class="urgencia-icon">⚠️</div>
+                                <div class="urgencia-info">
+                                    <span class="urgencia-label">Urgente</span>
+                                    <span class="urgencia-desc">31 – 90 dias</span>
+                                    <span class="urgencia-count" id="urg-urgente">-</span>
+                                </div>
+                            </div>
+                            <div class="urgencia-card urgencia-critico">
+                                <div class="urgencia-icon">🚨</div>
+                                <div class="urgencia-info">
+                                    <span class="urgencia-label">Crítico</span>
+                                    <span class="urgencia-desc">> 90 dias</span>
+                                    <span class="urgencia-count" id="urg-critico">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Alertas do Dia -->
+                    <section class="alertas-section">
+                        <h3><i class="fas fa-bell"></i> Alertas do Dia — Ações Prioritárias</h3>
+                        <div class="alertas-grid">
+
+                            <!-- Alerta 1: Sem compra -->
+                            <div class="alerta-card alerta-receita">
+                                <div class="alerta-header">
+                                    <span class="alerta-titulo">🛒 Sem Compra há &gt; 7 dias</span>
+                                    <span class="alerta-count" id="alerta-sem-compra-count">0</span>
+                                </div>
+                                <p class="alerta-desc">Jogadores que pararam de comprar mas ainda podem estar ativos. Prioridade por nível VIP.</p>
+                                <div class="table-container">
+                                    <table class="data-table alerta-table">
+                                        <thead><tr><th>Player</th><th>VIP</th><th>Engajamento</th><th>Dias s/ compra</th><th>Urgência</th></tr></thead>
+                                        <tbody id="alerta-sem-compra-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Alerta 2: Oportunidade conversão -->
+                            <div class="alerta-card alerta-oportunidade">
+                                <div class="alerta-header">
+                                    <span class="alerta-titulo">💰 Oportunidade de Conversão</span>
+                                    <span class="alerta-count" id="alerta-oportunidade-count">0</span>
+                                </div>
+                                <p class="alerta-desc">Alto engajamento + zero compras nos últimos 7 dias. Momento certo para oferta.</p>
+                                <div class="table-container">
+                                    <table class="data-table alerta-table">
+                                        <thead><tr><th>Player</th><th>VIP</th><th>Engajamento</th><th>Dias s/ compra</th><th>Ação</th></tr></thead>
+                                        <tbody id="alerta-oportunidade-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Alerta 3: Churn iminente -->
+                            <div class="alerta-card alerta-churn">
+                                <div class="alerta-header">
+                                    <span class="alerta-titulo">💎 Churn Iminente</span>
+                                    <span class="alerta-count" id="alerta-churn-count">0</span>
+                                </div>
+                                <p class="alerta-desc">Sem compras e sem engajamento. Última chance de retenção — ligar agora.</p>
+                                <div class="table-container">
+                                    <table class="data-table alerta-table">
+                                        <thead><tr><th>Player</th><th>VIP</th><th>Engajamento</th><th>Dias s/ compra</th><th>Ação</th></tr></thead>
+                                        <tbody id="alerta-churn-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                         </div>
                     </section>
 
