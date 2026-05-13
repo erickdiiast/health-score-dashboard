@@ -331,14 +331,10 @@ function updateDashboardWithData(resumo, dados) {
     updateJogadoresRiscoReceita(jogadoresRiscoReceita);
     updateJogadoresRiscoEngajamento(jogadoresRiscoEngajamento);
 
-    // Urgência e Alertas
-    if (resumo.contagem_urgencia) updateUrgencia(resumo.contagem_urgencia);
-    renderAlertas(resumo);
-
-    // Matriz quadrante
-    if (resumo.dados_quadrante && resumo.dados_quadrante.length > 0) {
-        renderQuadranteChart(resumo.dados_quadrante);
-    }
+    // Urgência, Alertas e Quadrante — calculados do array filtrado para reagir a filtros
+    updateUrgencia(dados);
+    renderAlertas(dados);
+    renderQuadranteChart(dados);
 
     // Atualiza seção de clusters
     updateClustersSection(dados);
@@ -376,12 +372,17 @@ function showTab(tabId) {
  */
 function renderTabContent(tabId, resumo) {
     switch(tabId) {
-        case 'tab-overview':
+        case 'tab-overview': {
             if (resumo.distribuicao_categorias) {
                 renderCategoriaChart(resumo.distribuicao_categorias);
                 renderScoresChart(resumo);
             }
+            const dados = cachedDadosAtual || [];
+            renderQuadranteChart(dados);
+            renderAlertas(dados);
+            updateUrgencia(dados);
             break;
+        }
         case 'tab-executivo':
             renderResumoExecutivo();
             break;
@@ -1168,12 +1169,17 @@ async function handleFileUpload(event) {
 //  URGÊNCIA DE RECONTATO
 // ═══════════════════════════════════════════════════════════
 
-function updateUrgencia(contagem) {
+function updateUrgencia(dados) {
+    const contagem = { ativo: 0, monitorar: 0, urgente: 0, critico: 0 };
+    (dados || []).forEach(j => {
+        const n = j.urgencia_nivel;
+        if (n in contagem) contagem[n]++;
+    });
     const el = (id) => document.getElementById(id);
-    if (el('urg-ativo'))     el('urg-ativo').textContent     = contagem.ativo     ?? '-';
-    if (el('urg-monitorar')) el('urg-monitorar').textContent = contagem.monitorar ?? '-';
-    if (el('urg-urgente'))   el('urg-urgente').textContent   = contagem.urgente   ?? '-';
-    if (el('urg-critico'))   el('urg-critico').textContent   = contagem.critico   ?? '-';
+    if (el('urg-ativo'))     el('urg-ativo').textContent     = contagem.ativo;
+    if (el('urg-monitorar')) el('urg-monitorar').textContent = contagem.monitorar;
+    if (el('urg-urgente'))   el('urg-urgente').textContent   = contagem.urgente;
+    if (el('urg-critico'))   el('urg-critico').textContent   = contagem.critico;
 }
 
 function getUrgenciaHtml(nivel, dias) {
@@ -1192,9 +1198,30 @@ function getUrgenciaHtml(nivel, dias) {
 //  ALERTAS DO DIA
 // ═══════════════════════════════════════════════════════════
 
-function renderAlertas(resumo) {
+function renderAlertas(dados) {
     const nomesVIP = { 1: 'Ametista', 2: 'Topázio', 3: 'Esmeralda', 4: 'Opala', 5: 'Berilo' };
     const coresVIP = { 1: '#9B59B6', 2: '#F39C12', 3: '#27AE60', 4: '#E74C3C', 5: '#3498DB' };
+    const arr = dados || [];
+
+    // Sem compra recente: urgentes e críticos, do mais antigo ao mais recente
+    const sc = [...arr]
+        .filter(j => j.urgencia_nivel === 'urgente' || j.urgencia_nivel === 'critico')
+        .sort((a, b) => (b.dias_sem_compra || 0) - (a.dias_sem_compra || 0))
+        .slice(0, 20);
+
+    // Oportunidade: alta engajamento mas baixa receita
+    const op = [...arr]
+        .filter(j => j.categoria && j.categoria.includes('Oportunidade'))
+        .sort((a, b) => (b.score_engajamento || 0) - (a.score_engajamento || 0))
+        .slice(0, 20)
+        .map(j => ({ ...j, acao_sugerida: 'Oferta especial / upgrade VIP' }));
+
+    // Churn: iminente e em atenção
+    const ch = [...arr]
+        .filter(j => j.categoria === '💎 Churn Iminente' || j.categoria === '⚠️ Atenção')
+        .sort((a, b) => (a.score_geral || 0) - (b.score_geral || 0))
+        .slice(0, 20)
+        .map(j => ({ ...j, acao_sugerida: j.categoria === '💎 Churn Iminente' ? 'Contato urgente' : 'Reengajar' }));
 
     function fillerRow(cols, msg) {
         return `<tr><td colspan="${cols}" style="text-align:center;color:#64748b;padding:12px">${msg}</td></tr>`;
@@ -1225,10 +1252,6 @@ function renderAlertas(resumo) {
             </tr>`;
         }).join('');
     }
-
-    const sc  = resumo.alertas_sem_compra   || [];
-    const op  = resumo.alertas_oportunidade  || [];
-    const ch  = resumo.alertas_churn         || [];
 
     const scBody  = document.getElementById('alerta-sem-compra-body');
     const opBody  = document.getElementById('alerta-oportunidade-body');
@@ -1332,6 +1355,7 @@ function renderQuadranteChart(dados) {
         plugins: [{
             id: 'quadrantLines',
             afterDraw(chart) {
+                if (!chart.chartArea) return;
                 const { ctx, chartArea: { left, right, top, bottom }, scales: { x, y } } = chart;
                 const x30 = x.getPixelForValue(30);
                 const x60 = x.getPixelForValue(60);

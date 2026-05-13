@@ -647,11 +647,11 @@ class HealthScoreCalculator:
           médio → score 30–59
           baixo → score <  30
 
-        Matriz 3×3:
-          eng\rec  alto         médio          baixo
-          alto   │ ⭐ Elite   │ 🏆 VIP Ativo  │ 💰 Oportunidade (VIP)
-          médio  │ 📈 Bom     │ 📊 Estável    │ 🎯 Potencial
-          baixo  │ 🚨 Risco↓Eng│ 🚨 Risco↓Rec │ 💎 Churn Iminente
+        Matriz 3×3 (VIP≥3 em parênteses onde difere):
+          eng\rec  alto               médio              baixo
+          alto   │ ⭐ Elite          │ 🏆 VIP Ativo      │ 💰 Oportunidade (VIP)
+          médio  │ 📈 Bom            │ 📊 Estável        │ 🚨 Risco↓Rec (VIP≥3) / 🎯 Potencial
+          baixo  │ 🚨 Risco↓Eng     │ ⚠️ Atenção        │ 💎 Churn Iminente
         """
         eng  = row.get('score_engajamento', 0)
         comp = row.get('score_compras', 0)
@@ -669,11 +669,12 @@ class HealthScoreCalculator:
         if status_eng == 'médio':
             if status_rec == 'alto':  return '📈 Bom'
             if status_rec == 'médio': return '📊 Estável'
-            return '🎯 Potencial'  # eng médio + rec baixa → nutrir
+            # VIP alto investiu antes → risco real; VIP baixo → potencial a nutrir
+            return '🚨 Risco: Queda Receita' if vip >= 3 else '🎯 Potencial'
 
         # eng baixo
         if status_rec == 'alto':  return '🚨 Risco: Queda Engajamento'  # compra mas para de jogar
-        if status_rec == 'médio': return '🚨 Risco: Queda Receita'
+        if status_rec == 'médio': return '⚠️ Atenção'
         return '💎 Churn Iminente'
 
 
@@ -2268,9 +2269,9 @@ def recalcular_categoria(score_geral: float, score_engajamento: float, score_com
     if status_eng == 'médio':
         if status_rec == 'alto':  return '📈 Bom'
         if status_rec == 'médio': return '📊 Estável'
-        return '🎯 Potencial'
+        return '🚨 Risco: Queda Receita' if vip >= 3 else '🎯 Potencial'
     if status_rec == 'alto':  return '🚨 Risco: Queda Engajamento'
-    if status_rec == 'médio': return '🚨 Risco: Queda Receita'
+    if status_rec == 'médio': return '⚠️ Atenção'
     return '💎 Churn Iminente'
 
 
